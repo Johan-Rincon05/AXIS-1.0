@@ -1,0 +1,78 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+
+// Forzar que esta ruta sea dinámica (no estática) porque usa request.headers
+export const dynamic = 'force-dynamic'
+
+/**
+ * Endpoint para iniciar el proceso de login con Google
+ * Redirige al usuario a la página de autenticación de Google
+ * 
+ * IMPORTANTE: En Google Cloud Console, el redirect_uri debe ser:
+ * https://[tu-proyecto].supabase.co/auth/v1/callback
+ * NO el callback de nuestra aplicación
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    
+    // Obtener la URL de redirección después del login
+    // Esta será la URL a la que Supabase redirigirá después de autenticar
+    // Necesitamos construir la URL completa con el protocolo y dominio
+    const host = request.headers.get('host') || request.headers.get('x-forwarded-host')
+    const protocol = request.headers.get('x-forwarded-proto') || (request.headers.get('host')?.includes('localhost') ? 'http' : 'https')
+    
+    // Construir la URL base
+    let origin: string
+    if (host) {
+      origin = `${protocol}://${host}`
+    } else {
+      // Fallback: usar NEXT_PUBLIC_APP_URL o localhost para desarrollo
+      origin = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    }
+    
+    const redirectUrl = `${origin}/auth/callback`
+    
+    console.log('[Auth] Iniciando OAuth con redirectTo:', redirectUrl)
+    console.log('[Auth] Host:', host, 'Protocol:', protocol, 'Origin:', origin)
+    
+    // Iniciar el proceso de OAuth con Google
+    // Supabase manejará el callback inicial, luego redirigirá a redirectUrl
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: redirectUrl, // URL a la que Supabase redirigirá después de autenticar
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+        skipBrowserRedirect: false,
+      },
+    })
+
+    if (error) {
+      console.error('[Auth] Error iniciando login con Google:', error)
+      return NextResponse.json(
+        { error: 'Error al iniciar login con Google', message: error.message },
+        { status: 500 }
+      )
+    }
+
+    // Redirigir a la URL de autenticación de Google
+    if (data.url) {
+      return NextResponse.redirect(data.url)
+    }
+
+    return NextResponse.json(
+      { error: 'No se pudo obtener la URL de autenticación' },
+      { status: 500 }
+    )
+  } catch (error) {
+    console.error('[Auth] Error inesperado:', error)
+    return NextResponse.json(
+      { error: 'Error interno del servidor', message: error instanceof Error ? error.message : 'Error desconocido' },
+      { status: 500 }
+    )
+  }
+}
+

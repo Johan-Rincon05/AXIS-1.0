@@ -1,0 +1,128 @@
+export enum Role {
+  EMPLEADO = 'Empleado',
+  GERENTE = 'Gerente',
+  COORDINADOR = 'Coordinador',
+  ASISTENCIA = 'Asistencia',
+}
+
+export type Area = 'DTI' | 'CAM'
+
+export enum Status {
+  OPEN = 'Abierto',
+  IN_PROGRESS = 'En Progreso',
+  RESOLVED = 'Resuelto',
+  CLOSED = 'Cerrado',
+}
+
+export enum Priority {
+  LOW = 'Baja',
+  MEDIUM = 'Media',
+  HIGH = 'Alta',
+}
+
+export enum TipoSolicitudCAM {
+  DISEÑO_GRAFICO = 'Diseño Gráfico',
+  EDICION_VIDEO = 'Edición de Video',
+  GRABACION_AUDIOVISUAL = 'Grabación Audiovisual',
+  PAUTA = 'Pauta/Publicidad',
+  REDES_SOCIALES = 'Redes Sociales',
+  OTRO = 'Otro',
+}
+
+export const SLA_DIAS_CAM: Record<TipoSolicitudCAM, number> = {
+  [TipoSolicitudCAM.DISEÑO_GRAFICO]: 2,
+  [TipoSolicitudCAM.EDICION_VIDEO]: 4,
+  [TipoSolicitudCAM.GRABACION_AUDIOVISUAL]: 4,
+  [TipoSolicitudCAM.PAUTA]: 2,
+  [TipoSolicitudCAM.REDES_SOCIALES]: 1,
+  [TipoSolicitudCAM.OTRO]: 2,
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role: Role;
+  area?: Area | null;
+}
+
+export interface Comment {
+  id: number;
+  author: string;
+  text: string;
+  timestamp: string;
+}
+
+export interface Attachment {
+  id: string;
+  ticket_id: string;
+  filename: string;
+  original_name: string;
+  file_size: number;
+  file_type: string;
+  file_path: string;
+  uploaded_by: string;
+  created_at: string;
+}
+
+export interface Ticket {
+  id: string;
+  title: string;
+  description: string;
+  requester_id: string;
+  assigned_to?: string;
+  transferred_by?: string;
+  status: Status;
+  priority: Priority;
+  category: string;
+  area: Area;
+  // DTI-specific
+  origin?: 'Interna' | 'Externa';
+  external_company?: string;
+  external_contact?: string;
+  // CAM-specific
+  tipo_solicitud?: TipoSolicitudCAM;
+  objetivo_solicitud?: string;
+  publico_objetivo?: string;
+  mensaje_clave?: string;
+  fecha_limite?: string;
+  // Metadata
+  created_at: string;
+  updated_at: string;
+  resolved_at?: string;
+  comments: Comment[];
+  attachments?: Attachment[];
+}
+
+export interface SLAMetric {
+  ticketId: string;
+  title: string;
+  assignedTo?: string;
+  area: Area;
+  tipo_solicitud?: TipoSolicitudCAM;
+  createdAt: string;
+  resolvedAt?: string;
+  fechaLimiteSLA?: string;
+  enTiempo: boolean;
+  diasRestantes?: number;
+  status: Status;
+}
+
+export interface MetricasTecnico {
+  userId: string;
+  userName: string;
+  area: Area;
+  totalTickets: number;
+  resueltos: number;
+  enTiempo: number;
+  fueraDeTiempo: number;
+  porcentajeCumplimiento: number;
+  tiempoPromedioResolucion: number;
+}
+
+export interface Notification {
+  id: number;
+  message: string;
+  type: 'success' | 'error' | 'info';
+}

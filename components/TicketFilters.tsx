@@ -20,6 +20,7 @@ interface TicketFiltersProps {
   currentFilters: FilterState
   totalDTI: number
   totalCAM: number
+  userArea?: Area
 }
 
 const AREA_LABELS: Record<Area | 'all', string> = {
@@ -48,10 +49,15 @@ export function TicketFilters({
   currentFilters,
   totalDTI,
   totalCAM,
+  userArea,
 }: TicketFiltersProps) {
   const update = (key: keyof FilterState, value: string) => {
     onFilterChange({ ...currentFilters, [key]: value })
   }
+
+  const showDTI = !userArea || userArea === 'DTI'
+  const showCAM = !userArea || userArea === 'CAM'
+  const showAll = !userArea
 
   return (
     <div
@@ -60,61 +66,67 @@ export function TicketFilters({
     >
       {/* Area pills */}
       <div className="flex items-center gap-2 mr-2">
-        <button
-          onClick={() => update('area', 'all')}
-          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold tracking-wide transition-all ${
-            currentFilters.area === 'all'
-              ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
-              : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-          }`}
-        >
-          Todos
-          <span className="rounded-full bg-zinc-600 dark:bg-zinc-400 text-white dark:text-zinc-900 px-1.5 text-[10px]">
-            {totalDTI + totalCAM}
-          </span>
-        </button>
+        {showAll && (
+          <button
+            onClick={() => update('area', 'all')}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold tracking-wide transition-all ${
+              currentFilters.area === 'all'
+                ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
+                : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+            }`}
+          >
+            Todos
+            <span className="rounded-full bg-zinc-600 dark:bg-zinc-400 text-white dark:text-zinc-900 px-1.5 text-[10px]">
+              {totalDTI + totalCAM}
+            </span>
+          </button>
+        )}
 
-        <button
-          onClick={() => update('area', 'DTI')}
-          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold tracking-wide transition-all ${
-            currentFilters.area === 'DTI'
-              ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(37,99,235,0.4)]'
-              : 'bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900'
-          }`}
-        >
-          <span className="h-1.5 w-1.5 rounded-full bg-current" />
-          DTI
-          <span
-            className={`rounded-full px-1.5 text-[10px] ${
+        {showDTI && (
+          <button
+            onClick={() => update('area', 'DTI')}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold tracking-wide transition-all ${
               currentFilters.area === 'DTI'
-                ? 'bg-blue-500 text-white'
-                : 'bg-blue-200 text-blue-700 dark:bg-blue-800 dark:text-blue-300'
+                ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(37,99,235,0.4)]'
+                : 'bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900'
             }`}
           >
-            {totalDTI}
-          </span>
-        </button>
+            <span className="h-1.5 w-1.5 rounded-full bg-current" />
+            DTI
+            <span
+              className={`rounded-full px-1.5 text-[10px] ${
+                currentFilters.area === 'DTI'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-blue-200 text-blue-700 dark:bg-blue-800 dark:text-blue-300'
+              }`}
+            >
+              {totalDTI}
+            </span>
+          </button>
+        )}
 
-        <button
-          onClick={() => update('area', 'CAM')}
-          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold tracking-wide transition-all ${
-            currentFilters.area === 'CAM'
-              ? 'bg-violet-600 text-white shadow-[0_0_12px_rgba(124,58,237,0.4)]'
-              : 'bg-violet-50 text-violet-600 dark:bg-violet-950 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900'
-          }`}
-        >
-          <span className="h-1.5 w-1.5 rounded-full bg-current" />
-          CAM
-          <span
-            className={`rounded-full px-1.5 text-[10px] ${
+        {showCAM && (
+          <button
+            onClick={() => update('area', 'CAM')}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold tracking-wide transition-all ${
               currentFilters.area === 'CAM'
-                ? 'bg-violet-500 text-white'
-                : 'bg-violet-200 text-violet-700 dark:bg-violet-800 dark:text-violet-300'
+                ? 'bg-violet-600 text-white shadow-[0_0_12px_rgba(124,58,237,0.4)]'
+                : 'bg-violet-50 text-violet-600 dark:bg-violet-950 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900'
             }`}
           >
-            {totalCAM}
-          </span>
-        </button>
+            <span className="h-1.5 w-1.5 rounded-full bg-current" />
+            CAM
+            <span
+              className={`rounded-full px-1.5 text-[10px] ${
+                currentFilters.area === 'CAM'
+                  ? 'bg-violet-500 text-white'
+                  : 'bg-violet-200 text-violet-700 dark:bg-violet-800 dark:text-violet-300'
+              }`}
+            >
+              {totalCAM}
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Divider */}

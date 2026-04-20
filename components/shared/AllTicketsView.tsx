@@ -30,8 +30,10 @@ export function AllTicketsView() {
   const { users } = useUsers()
   const { currentUser } = useAuth()
 
+  const userArea = currentUser?.area ?? null
+
   const [filters, setFilters] = useState<{ area: Area | 'all'; status: Status | 'all'; priority: Priority | 'all' }>({
-    area: 'all', status: 'all', priority: 'all',
+    area: userArea ?? 'all', status: 'all', priority: 'all',
   })
   const [search, setSearch] = useState('')
 
@@ -69,7 +71,7 @@ export function AllTicketsView() {
       <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between gap-4">
         <div>
           <h1 className="text-white font-bold text-lg tracking-tight">Todos los tickets</h1>
-          <p className="text-zinc-500 text-xs mt-0.5">Vista unificada DTI + CAM</p>
+          <p className="text-zinc-500 text-xs mt-0.5">{userArea ? `Área ${userArea}` : 'Vista unificada DTI + CAM'}</p>
         </div>
         <input
           value={search}
@@ -86,6 +88,7 @@ export function AllTicketsView() {
           currentFilters={filters}
           totalDTI={totalDTI}
           totalCAM={totalCAM}
+          userArea={userArea ?? undefined}
         />
       </div>
 

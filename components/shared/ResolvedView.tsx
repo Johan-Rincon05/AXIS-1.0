@@ -22,7 +22,8 @@ export function ResolvedView() {
   const { users } = useUsers()
   const { currentUser } = useAuth()
 
-  const [areaFilter, setAreaFilter] = useState<Area | 'all'>('all')
+  const userArea = currentUser?.area ?? null
+  const [areaFilter, setAreaFilter] = useState<Area | 'all'>(userArea ?? 'all')
   const [search, setSearch] = useState('')
 
   const resolved = useMemo(() => {
@@ -71,7 +72,11 @@ export function ResolvedView() {
 
       {/* Area filter pills */}
       <div className="px-6 py-3 border-b border-zinc-800 flex items-center gap-2">
-        {([['all', 'Todos', totalDTI + totalCAM, 'bg-zinc-700 text-zinc-200'], ['DTI', 'DTI', totalDTI, 'bg-blue-600 text-white'], ['CAM', 'CAM', totalCAM, 'bg-violet-600 text-white']] as const).map(
+        {([
+          !userArea && ['all', 'Todos', totalDTI + totalCAM, 'bg-zinc-700 text-zinc-200'],
+          (!userArea || userArea === 'DTI') && ['DTI', 'DTI', totalDTI, 'bg-blue-600 text-white'],
+          (!userArea || userArea === 'CAM') && ['CAM', 'CAM', totalCAM, 'bg-violet-600 text-white'],
+        ].filter(Boolean) as [string, string, number, string][]).map(
           ([val, label, count, activeClass]) => (
             <button
               key={val}

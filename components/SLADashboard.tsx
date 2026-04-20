@@ -215,12 +215,16 @@ export function SLADashboard({
           </div>
           {/* Legend */}
           <div className="flex items-center gap-4 mt-2 text-[11px] text-zinc-400">
-            <span className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-blue-500" /> DTI
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-violet-500" /> CAM
-            </span>
+            {(!area || area === 'DTI') && (
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-blue-500" /> DTI
+              </span>
+            )}
+            {(!area || area === 'CAM') && (
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-violet-500" /> CAM
+              </span>
+            )}
             <span className="flex items-center gap-1 ml-auto">
               <span className="h-2 w-2 rounded-full bg-emerald-500" /> ≥80%
             </span>

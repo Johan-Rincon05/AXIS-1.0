@@ -8,6 +8,10 @@ export enum Role {
 
 export type Area = 'DTI' | 'CAM'
 
+export const RESOLVER_AREAS: string[] = ['DTI', 'CAM']
+export const isResolverArea = (area: string | null | undefined): boolean =>
+  area === 'DTI' || area === 'CAM'
+
 export enum Status {
   OPEN = 'Abierto',
   IN_PROGRESS = 'En Progreso',

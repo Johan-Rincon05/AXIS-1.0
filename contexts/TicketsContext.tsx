@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
-import { Ticket, Area, Status } from '@/types'
+import { Ticket, Area, Status, isResolverArea } from '@/types'
 import { ticketServiceClient } from '@/services/ticketServiceClient'
 import { activityService, createActivityEvents } from '@/services/activityService'
 import { syncService, createTicketEvent } from '@/services/syncService'
@@ -30,17 +30,26 @@ export function TicketsProvider({ children }: { children: ReactNode }) {
     setIsLoading(true)
     try {
       const fetched = await ticketServiceClient.getAllTickets()
-      // Aislar tickets por área del usuario; SuperUser y sin área ven todos
-      const visible = currentUser?.area
-        ? fetched.filter(t => t.area === currentUser.area)
-        : fetched
+      let visible: Ticket[]
+      if (!currentUser?.area) {
+        // SuperUser or no area: all tickets
+        visible = fetched
+      } else if (isResolverArea(currentUser.area)) {
+        // DTI/CAM: their area's tickets + any ticket they personally submitted
+        visible = fetched.filter(t =>
+          t.area === currentUser.area || t.requester_id === currentUser.id
+        )
+      } else {
+        // Requester area (Contabilidad, RRHH, etc.): only their own submissions
+        visible = fetched.filter(t => t.requester_id === currentUser.id)
+      }
       setTickets(visible)
     } catch (e) {
       console.error('[AXIS] Error loading tickets:', e)
     } finally {
       setIsLoading(false)
     }
-  }, [currentUser?.area])
+  }, [currentUser?.area, currentUser?.id])
 
   useEffect(() => { reload() }, [reload])
 

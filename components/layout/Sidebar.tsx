@@ -1,10 +1,10 @@
 'use client'
 
 import { useAuth, canViewSLA, isSuperUser } from '@/contexts/AuthContext'
-import { Role } from '@/types'
+import { Role, isResolverArea } from '@/types'
 import DarkModeToggle from '@/components/DarkModeToggle'
 
-export type AppView = 'all-tickets' | 'dti' | 'cam' | 'resolved' | 'users' | 'sla'
+export type AppView = 'all-tickets' | 'dti' | 'cam' | 'resolved' | 'users' | 'sla' | 'my-requests' | 'areas'
 
 interface SidebarProps {
   currentView: AppView
@@ -61,6 +61,9 @@ export function Sidebar({ currentView, onViewChange, onLogout, isSyncing }: Side
   const role = currentUser.role
   const area = currentUser.area
   const superUser = isSuperUser(role)
+  const resolverUser = isResolverArea(area)
+  // Users in custom areas (Contabilidad, etc.) only see Mis Solicitudes
+  const requesterAreaUser = !!area && !resolverUser
 
   return (
     <aside className="w-64 bg-zinc-950 border-r border-zinc-800 flex flex-col">
@@ -90,7 +93,7 @@ export function Sidebar({ currentView, onViewChange, onLogout, isSyncing }: Side
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
 
-        {/* SuperUser: solo gestión de usuarios */}
+        {/* SuperUser: gestión de usuarios + áreas */}
         {superUser && (
           <>
             <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest px-4 pt-3 pb-1">
@@ -102,11 +105,32 @@ export function Sidebar({ currentView, onViewChange, onLogout, isSyncing }: Side
               </svg>
               Gestión de Usuarios
             </NavItem>
+            <NavItem active={currentView === 'areas'} onClick={() => onViewChange('areas')} accent="rose">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              Gestión de Áreas
+            </NavItem>
           </>
         )}
 
-        {/* Usuarios con área: vista general + su área */}
-        {!superUser && (
+        {/* Requester area users: only Mis Solicitudes */}
+        {requesterAreaUser && (
+          <>
+            <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest px-4 pt-3 pb-1">
+              Mis solicitudes
+            </p>
+            <NavItem active={currentView === 'my-requests'} onClick={() => onViewChange('my-requests')} accent="emerald">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              Mis Solicitudes
+            </NavItem>
+          </>
+        )}
+
+        {/* Resolver area users (DTI/CAM): full nav */}
+        {!superUser && resolverUser && (
           <>
             <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest px-4 pt-3 pb-1">
               Vista general
@@ -124,24 +148,35 @@ export function Sidebar({ currentView, onViewChange, onLogout, isSyncing }: Side
               Resueltos
             </NavItem>
 
-            {/* Área específica */}
+            {/* Area-specific */}
             <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest px-4 pt-4 pb-1">
               Mi Área
             </p>
-            {(!area || area === 'DTI') && (
+            {area === 'DTI' && (
               <NavItem active={currentView === 'dti'} onClick={() => onViewChange('dti')} accent="blue">
                 <span className="w-4 h-4 rounded flex items-center justify-center bg-blue-500/20 text-blue-400 text-[10px] font-black">D</span>
                 FixIT — DTI
               </NavItem>
             )}
-            {(!area || area === 'CAM') && (
+            {area === 'CAM' && (
               <NavItem active={currentView === 'cam'} onClick={() => onViewChange('cam')} accent="violet">
                 <span className="w-4 h-4 rounded flex items-center justify-center bg-violet-500/20 text-violet-400 text-[10px] font-black">C</span>
                 CAM
               </NavItem>
             )}
 
-            {/* SLA — solo Coordinador y Gerente */}
+            {/* Mis Solicitudes — cross-area personal submissions */}
+            <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest px-4 pt-4 pb-1">
+              Personal
+            </p>
+            <NavItem active={currentView === 'my-requests'} onClick={() => onViewChange('my-requests')} accent="emerald">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              Mis Solicitudes
+            </NavItem>
+
+            {/* SLA — Coordinador y Gerente */}
             {canViewSLA(role) && (
               <>
                 <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest px-4 pt-4 pb-1">
@@ -160,7 +195,7 @@ export function Sidebar({ currentView, onViewChange, onLogout, isSyncing }: Side
             {role === Role.ASISTENCIA && (
               <>
                 <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest px-4 pt-4 pb-1">
-                  Personal
+                  Métricas
                 </p>
                 <NavItem active={currentView === 'sla'} onClick={() => onViewChange('sla')} accent="amber">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

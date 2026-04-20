@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { User, Role, Area } from '@/types'
+import { User, Role, Area, isResolverArea } from '@/types'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,23 +15,29 @@ interface UserModalProps {
   user: User | null
 }
 
+interface AreaEntry { id: string; name: string }
+
 const NO_AREA = '__none__'
-const BLANK = { name: '', email: '', phone: '', role: Role.EMPLEADO, area: NO_AREA as Area | typeof NO_AREA }
+const BLANK = { name: '', email: '', phone: '', role: Role.EMPLEADO, area: NO_AREA as string }
 
 function autoEmail(name: string) {
   return name ? name.toLowerCase().replace(/[^a-z\s]/g, '').replace(/\s+/g, '.') + '@empresa.com' : ''
 }
 
-const ROLES_BY_AREA: Record<Area, Role[]> = {
-  DTI: [Role.GERENTE, Role.COORDINADOR, Role.ASISTENCIA, Role.EMPLEADO],
-  CAM: [Role.GERENTE, Role.COORDINADOR, Role.ASISTENCIA, Role.EMPLEADO],
-}
-
+const RESOLVER_ROLES: Role[] = [Role.GERENTE, Role.COORDINADOR, Role.ASISTENCIA, Role.EMPLEADO]
+const REQUESTER_ROLES: Role[] = [Role.EMPLEADO]
 const ROLES_NO_AREA: Role[] = [Role.SUPER_USER]
 
 export function UserModal({ isOpen, onClose, onSave, user }: UserModalProps) {
   const [form, setForm] = useState(BLANK)
   const [loading, setLoading] = useState(false)
+  const [customAreas, setCustomAreas] = useState<AreaEntry[]>([])
+
+  useEffect(() => {
+    fetch('/api/areas').then(r => r.json()).then(data => {
+      if (Array.isArray(data)) setCustomAreas(data)
+    }).catch(() => {})
+  }, [isOpen])
 
   useEffect(() => {
     setForm(user
@@ -45,9 +51,20 @@ export function UserModal({ isOpen, onClose, onSave, user }: UserModalProps) {
   }
 
   const hasArea = form.area && form.area !== NO_AREA
-  const availableRoles = hasArea
-    ? ROLES_BY_AREA[form.area as Area]
-    : ROLES_NO_AREA
+  const availableRoles = !hasArea
+    ? ROLES_NO_AREA
+    : isResolverArea(form.area)
+    ? RESOLVER_ROLES
+    : REQUESTER_ROLES
+
+  const handleAreaChange = (v: string) => {
+    const defaultRole = !v || v === NO_AREA
+      ? Role.SUPER_USER
+      : isResolverArea(v)
+      ? Role.EMPLEADO
+      : Role.EMPLEADO
+    setForm(p => ({ ...p, area: v, role: defaultRole }))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -84,12 +101,15 @@ export function UserModal({ isOpen, onClose, onSave, user }: UserModalProps) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Área</Label>
-              <Select value={form.area} onValueChange={v => setForm(p => ({ ...p, area: v as Area | typeof NO_AREA, role: v === NO_AREA ? Role.SUPER_USER : Role.EMPLEADO }))}>
+              <Select value={form.area} onValueChange={handleAreaChange}>
                 <SelectTrigger><SelectValue placeholder="Sin área" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NO_AREA}>Sin área (SuperUser)</SelectItem>
-                  <SelectItem value="DTI">DTI</SelectItem>
-                  <SelectItem value="CAM">CAM</SelectItem>
+                  <SelectItem value="DTI">DTI — Resolutora</SelectItem>
+                  <SelectItem value="CAM">CAM — Resolutora</SelectItem>
+                  {customAreas.map(a => (
+                    <SelectItem key={a.id} value={a.name}>{a.name} — Solicitante</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

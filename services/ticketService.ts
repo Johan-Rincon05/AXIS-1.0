@@ -1,19 +1,8 @@
-import { createClient } from "@/lib/supabase/server"
-import { Ticket, Priority, Status, Area, TipoSolicitudCAM } from "@/types"
-import { getColombiaTimestamp } from "@/utils/colombiaTime"
+import { query, queryOne } from '@/lib/db/client'
+import { Ticket, Priority, Status, Area, TipoSolicitudCAM } from '@/types'
+import { getColombiaTimestamp } from '@/utils/colombiaTime'
 
-// Re-export types from types.ts
 export { type Ticket, Priority, Status }
-
-function toDbPriority(priority: Priority): string {
-  return priority
-}
-
-function fromDbPriority(priority: string): Priority {
-  // Mapeamos "Crítica" legacy a Alta
-  if (priority === 'Crítica' || priority === 'Urgente') return Priority.HIGH
-  return priority as Priority
-}
 
 export interface CreateTicketData {
   title: string
@@ -21,13 +10,13 @@ export interface CreateTicketData {
   priority: Priority
   category: string
   area: Area
-  assigned_to?: string
   requester_id: string
-  // DTI-specific
+  assigned_to?: string
+  // DTI
   origin?: 'Interna' | 'Externa'
   external_company?: string
   external_contact?: string
-  // CAM-specific
+  // CAM
   tipo_solicitud?: TipoSolicitudCAM
   objetivo_solicitud?: string
   publico_objetivo?: string
@@ -41,10 +30,9 @@ export interface UpdateTicketData {
   priority?: Priority
   status?: Status
   category?: string
-  assigned_to?: string
+  assigned_to?: string | null
   resolution_notes?: string
   resolved_at?: string
-  // CAM-specific
   tipo_solicitud?: TipoSolicitudCAM
   objetivo_solicitud?: string
   publico_objetivo?: string
@@ -52,255 +40,159 @@ export interface UpdateTicketData {
   fecha_limite?: string
 }
 
-// Server-side functions
-export async function getAllTickets(): Promise<Ticket[]> {
-  try {
-    const supabase = await createClient()
+// Query base que incluye comentarios embebidos y datos de usuarios relacionados
+const TICKET_SELECT = `
+  SELECT
+    t.*,
+    t.created_by AS requester_id,
+    json_build_object('name', au.name, 'email', au.email) AS assigned_user,
+    json_build_object('name', cu.name, 'email', cu.email) AS creator,
+    COALESCE(
+      json_agg(
+        json_build_object(
+          'id', c.id,
+          'author', cu2.name,
+          'text', c.content,
+          'timestamp', c.created_at
+        ) ORDER BY c.created_at ASC
+      ) FILTER (WHERE c.id IS NOT NULL),
+      '[]'::json
+    ) AS comments
+  FROM tickets t
+  LEFT JOIN users au ON t.assigned_to = au.id
+  LEFT JOIN users cu ON t.created_by = cu.id
+  LEFT JOIN comments c ON c.ticket_id = t.id
+  LEFT JOIN users cu2 ON c.user_id = cu2.id
+`
 
-    const { data, error } = await supabase
-      .from("tickets")
-      .select(`
-        *,
-        assigned_user:assigned_to(name, email),
-        creator:created_by(name, email)
-      `)
-      .order("created_at", { ascending: false })
-
-    if (error) {
-      console.error("[v0] Error fetching tickets:", error)
-      return []
-    }
-
-    const normalized = (data || []).map((t: any) => ({
-      ...t,
-      requester_id: t.requester_id ?? t.created_by,
-      priority: fromDbPriority(t.priority),
-      area: t.area ?? 'DTI',
-    }))
-    return normalized
-  } catch (error) {
-    console.error("[v0] Database connection error:", error)
-    return []
+function normalizeTicket(row: any): Ticket {
+  if (!row) return row
+  // Limpiar el objeto assigned_user si no hay asignado
+  if (row.assigned_user && !row.assigned_user.name) {
+    row.assigned_user = null
   }
+  if (row.creator && !row.creator.name) {
+    row.creator = null
+  }
+  return {
+    ...row,
+    comments: row.comments || [],
+    attachments: row.attachments || [],
+  }
+}
+
+export async function getAllTickets(): Promise<Ticket[]> {
+  const rows = await query(
+    `${TICKET_SELECT}
+     GROUP BY t.id, au.name, au.email, cu.name, cu.email
+     ORDER BY t.created_at DESC`
+  )
+  return rows.map(normalizeTicket)
 }
 
 export async function getTicketById(id: string): Promise<Ticket | null> {
-  const supabase = await createClient()
-
-  const { data, error } = await supabase
-    .from("tickets")
-    .select(`
-      *,
-      assigned_user:assigned_to(name, email),
-      creator:created_by(name, email)
-    `)
-    .eq("id", id)
-    .single()
-
-  if (error) {
-    if (error.code === "PGRST116") {
-      return null // Ticket not found
-    }
-    console.error("[v0] Error fetching ticket:", error)
-    throw new Error("Error al obtener ticket")
-  }
-
-  return data
-    ? {
-        ...(data as any),
-        requester_id: (data as any).requester_id ?? (data as any).created_by,
-        priority: fromDbPriority((data as any).priority),
-      }
-    : null
-}
-
-export async function createTicket(ticketData: CreateTicketData): Promise<Ticket> {
-  const supabase = await createClient()
-
-  const payload: any = {
-    title: ticketData.title,
-    description: ticketData.description,
-    priority: toDbPriority(ticketData.priority),
-    status: Status.OPEN,
-    category: ticketData.category || 'Otro',
-    area: ticketData.area,
-    assigned_to: ticketData.assigned_to ?? null,
-    created_by: ticketData.requester_id,
-    // DTI fields
-    origin: ticketData.origin ?? (ticketData.area === 'DTI' ? 'Interna' : null),
-    external_company: ticketData.external_company ?? null,
-    external_contact: ticketData.external_contact ?? null,
-    // CAM fields
-    tipo_solicitud: ticketData.tipo_solicitud ?? null,
-    objetivo_solicitud: ticketData.objetivo_solicitud ?? null,
-    publico_objetivo: ticketData.publico_objetivo ?? null,
-    mensaje_clave: ticketData.mensaje_clave ?? null,
-    fecha_limite: ticketData.fecha_limite ?? null,
-  }
-
-  // Intentar primero con las relaciones
-  let { data, error } = await supabase
-    .from("tickets")
-    .insert([payload])
-    .select(`
-      *,
-      assigned_user:assigned_to(name, email),
-      creator:created_by(name, email)
-    `)
-    .single()
-
-  // Si hay error, intentar sin las relaciones y hacer joins manuales
-  if (error) {
-    console.warn("[v0] Error in createTicket (server), trying without relations:", error.message, "code:", error.code)
-    
-    // Crear ticket sin relaciones
-    const { data: ticketDataWithoutRelations, error: ticketError } = await supabase
-      .from("tickets")
-      .insert([payload])
-      .select("*")
-      .single()
-
-    if (ticketError) {
-      console.error("[v0] Error creating ticket without relations (server):", ticketError)
-      throw new Error("Error al crear ticket")
-    }
-
-    // Obtener usuarios relacionados para hacer join manual
-    const userIds = [ticketDataWithoutRelations.assigned_to, ticketDataWithoutRelations.created_by].filter(Boolean)
-    let usersData: any[] = []
-    
-    if (userIds.length > 0) {
-      const { data: users } = await supabase
-        .from("users")
-        .select("id, name, email")
-        .in("id", userIds)
-      usersData = users || []
-    }
-
-    // Hacer join manual
-    data = {
-      ...ticketDataWithoutRelations,
-      assigned_user: ticketDataWithoutRelations.assigned_to 
-        ? usersData.find((u: any) => u.id === ticketDataWithoutRelations.assigned_to) || null
-        : null,
-      creator: ticketDataWithoutRelations.created_by 
-        ? usersData.find((u: any) => u.id === ticketDataWithoutRelations.created_by) || null
-        : null
-    }
-    
-    error = null // Limpiar el error ya que lo resolvimos
-  }
-
-  if (error) {
-    console.error("[v0] Error creating ticket:", error)
-    throw new Error("Error al crear ticket")
-  }
-
-  const normalized = {
-    ...(data as any),
-    requester_id: (data as any).requester_id ?? (data as any).created_by,
-    priority: fromDbPriority((data as any).priority),
-  }
-  return normalized
-}
-
-export async function updateTicket(id: string, ticketData: UpdateTicketData): Promise<Ticket> {
-  const supabase = await createClient()
-
-  const payload: any = { ...ticketData }
-
-  // If status is being changed to resolved, set resolved_at
-  if (ticketData.status === Status.RESOLVED) {
-    payload.resolved_at = getColombiaTimestamp()
-  }
-
-  if (ticketData.priority) {
-    payload.priority = toDbPriority(ticketData.priority)
-  }
-
-  const { data, error } = await supabase
-    .from("tickets")
-    .update(payload)
-    .eq("id", id)
-    .select(`
-      *,
-      assigned_user:assigned_to(name, email),
-      creator:created_by(name, email)
-    `)
-    .single()
-
-  if (error) {
-    console.error("[v0] Error updating ticket:", error)
-    throw new Error("Error al actualizar ticket")
-  }
-
-  const normalized = {
-    ...(data as any),
-    requester_id: (data as any).requester_id ?? (data as any).created_by,
-    priority: fromDbPriority((data as any).priority),
-  }
-  return normalized
-}
-
-export async function deleteTicket(id: string): Promise<void> {
-  const supabase = await createClient()
-
-  const { error } = await supabase.from("tickets").delete().eq("id", id)
-
-  if (error) {
-    console.error("[v0] Error deleting ticket:", error)
-    throw new Error("Error al eliminar ticket")
-  }
-}
-
-export async function getTicketsByUser(userId: string): Promise<Ticket[]> {
-  const supabase = await createClient()
-
-  const { data, error } = await supabase
-    .from("tickets")
-    .select(`
-      *,
-      assigned_user:assigned_to(name, email),
-      creator:created_by(name, email)
-    `)
-    .order("created_at", { ascending: false })
-
-  if (error) {
-    console.error("[v0] Error fetching user tickets:", error)
-    throw new Error("Error al obtener tickets del usuario")
-  }
-
-  const all = (data || []).map((t: any) => ({
-    ...t,
-    requester_id: t.requester_id ?? t.created_by,
-    priority: fromDbPriority(t.priority),
-    area: t.area ?? 'DTI',
-  }))
-  return all.filter((t: any) => t.requester_id === userId || t.assigned_to === userId)
+  const row = await queryOne(
+    `${TICKET_SELECT}
+     WHERE t.id = $1
+     GROUP BY t.id, au.name, au.email, cu.name, cu.email`,
+    [id]
+  )
+  return row ? normalizeTicket(row) : null
 }
 
 export async function getTicketsByArea(area: Area): Promise<Ticket[]> {
-  const supabase = await createClient()
+  const rows = await query(
+    `${TICKET_SELECT}
+     WHERE t.area = $1
+     GROUP BY t.id, au.name, au.email, cu.name, cu.email
+     ORDER BY t.created_at DESC`,
+    [area]
+  )
+  return rows.map(normalizeTicket)
+}
 
-  const { data, error } = await supabase
-    .from("tickets")
-    .select(`
-      *,
-      assigned_user:assigned_to(name, email),
-      creator:created_by(name, email)
-    `)
-    .eq("area", area)
-    .order("created_at", { ascending: false })
+export async function getTicketsByUser(userId: string): Promise<Ticket[]> {
+  const rows = await query(
+    `${TICKET_SELECT}
+     WHERE t.created_by = $1 OR t.assigned_to = $1
+     GROUP BY t.id, au.name, au.email, cu.name, cu.email
+     ORDER BY t.created_at DESC`,
+    [userId]
+  )
+  return rows.map(normalizeTicket)
+}
 
-  if (error) {
-    console.error("[v0] Error fetching tickets by area:", error)
-    return []
+export async function createTicket(data: CreateTicketData): Promise<Ticket> {
+  const row = await queryOne(
+    `INSERT INTO tickets (
+       title, description, priority, status, category, area,
+       created_by, assigned_to,
+       origin, external_company, external_contact,
+       tipo_solicitud, objetivo_solicitud, publico_objetivo, mensaje_clave, fecha_limite
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+     RETURNING id`,
+    [
+      data.title,
+      data.description,
+      data.priority,
+      Status.OPEN,
+      data.category || 'Otro',
+      data.area,
+      data.requester_id,
+      data.assigned_to ?? null,
+      data.origin ?? (data.area === 'DTI' ? 'Interna' : null),
+      data.external_company ?? null,
+      data.external_contact ?? null,
+      data.tipo_solicitud ?? null,
+      data.objetivo_solicitud ?? null,
+      data.publico_objetivo ?? null,
+      data.mensaje_clave ?? null,
+      data.fecha_limite ?? null,
+    ]
+  )
+  if (!row) throw new Error('Error al crear ticket')
+  const ticket = await getTicketById(row.id)
+  if (!ticket) throw new Error('Error al obtener ticket creado')
+  return ticket
+}
+
+export async function updateTicket(id: string, data: UpdateTicketData): Promise<Ticket> {
+  const fields: string[] = []
+  const values: any[] = []
+  let idx = 1
+
+  const allowed: (keyof UpdateTicketData)[] = [
+    'title', 'description', 'priority', 'status', 'category',
+    'assigned_to', 'resolution_notes', 'resolved_at',
+    'tipo_solicitud', 'objetivo_solicitud', 'publico_objetivo',
+    'mensaje_clave', 'fecha_limite',
+  ]
+
+  for (const key of allowed) {
+    if (key in data) {
+      fields.push(`${key} = $${idx++}`)
+      values.push((data as any)[key])
+    }
   }
 
-  return (data || []).map((t: any) => ({
-    ...t,
-    requester_id: t.requester_id ?? t.created_by,
-    priority: fromDbPriority(t.priority),
-    area: t.area ?? area,
-  }))
+  if (data.status === Status.RESOLVED && !data.resolved_at) {
+    fields.push(`resolved_at = $${idx++}`)
+    values.push(getColombiaTimestamp())
+  }
+
+  if (fields.length === 0) throw new Error('No hay campos para actualizar')
+
+  values.push(id)
+  await query(
+    `UPDATE tickets SET ${fields.join(', ')} WHERE id = $${idx}`,
+    values
+  )
+
+  const ticket = await getTicketById(id)
+  if (!ticket) throw new Error('Ticket no encontrado')
+  return ticket
+}
+
+export async function deleteTicket(id: string): Promise<void> {
+  await query(`DELETE FROM tickets WHERE id = $1`, [id])
 }

@@ -1,16 +1,7 @@
-import { createClient } from "@/lib/supabase/server"
-import { createClient as createBrowserClient, createMockClient } from "@/lib/supabase/client"
-import { Role, Area } from "../types"
+import { query, queryOne } from '@/lib/db/client'
+import { User, Role, Area } from '@/types'
 
-export interface User {
-  id: string
-  email: string
-  name: string
-  role: Role
-  area?: Area | null
-  created_at: string
-  updated_at: string
-}
+export type { User }
 
 export interface CreateUserData {
   email: string
@@ -20,691 +11,133 @@ export interface CreateUserData {
   area?: Area | null
 }
 
-// Server-side functions
+// ─── Server-side functions (usadas por API routes) ────────────────────────────
+
 export async function getAllUsers(): Promise<User[]> {
-  try {
-    console.log("[v0] getAllUsers: Starting to fetch users from Supabase...")
-    const supabase = await createClient()
-
-    const { data, error } = await supabase.from("users").select("*").order("created_at", { ascending: false })
-
-    if (error) {
-      console.error("[v0] Error fetching users:", error)
-      console.error("[v0] Error details:", {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint
-      })
-      return []
-    }
-
-    console.log("[v0] getAllUsers: Successfully fetched users:", data?.length || 0)
-    console.log("[v0] getAllUsers: Users data:", data)
-    return data || []
-  } catch (error) {
-    console.error("[v0] Database connection error:", error)
-    return []
-  }
+  return query<User>(
+    `SELECT id, name, email, phone, role, area, is_active, created_at, updated_at
+     FROM users
+     WHERE is_active = TRUE
+     ORDER BY created_at DESC`
+  )
 }
 
 export async function getUserById(id: string): Promise<User | null> {
-  const supabase = await createClient()
-
-  const { data, error } = await supabase.from("users").select("*").eq("id", id).single()
-
-  if (error) {
-    if (error.code === "PGRST116") {
-      return null // User not found
-    }
-    console.error("[v0] Error fetching user:", error)
-    throw new Error("Error al obtener usuario")
-  }
-
-  return data
+  return queryOne<User>(
+    `SELECT id, name, email, phone, role, area, is_active, created_at, updated_at
+     FROM users WHERE id = $1`,
+    [id]
+  )
 }
 
 export async function getUserByEmail(email: string): Promise<User | null> {
-  const supabase = await createClient()
-
-  console.log("[v0] Searching for user with email:", email)
-
-  const { data, error } = await supabase.from("users").select("*").eq("email", email).maybeSingle()
-
-  if (error) {
-    console.error("[v0] Error fetching user by email:", error)
-    console.error("[v0] Error details:", {
-      code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint
-    })
-    
-    // Si es un error de permisos (406), intentar con una consulta más simple
-    if (error.code === "PGRST301" || error.message?.includes("406")) {
-      console.log("[v0] Retrying with simpler query...")
-      try {
-        const { data: retryData, error: retryError } = await supabase
-          .from("users")
-          .select("id, name, email, role, created_at, updated_at")
-          .eq("email", email)
-          .maybeSingle()
-        
-        if (retryError) {
-          console.error("[v0] Retry also failed:", retryError)
-    throw new Error("Error al buscar usuario por email")
-  }
-        
-        console.log("[v0] User found with retry:", retryData)
-        return retryData
-      } catch (retryError) {
-        console.error("[v0] Retry exception:", retryError)
-        throw new Error("Error al buscar usuario por email")
-      }
-    }
-    
-    throw new Error(`Error al buscar usuario por email: ${error.message}`)
-  }
-
-  if (!data) {
-    console.log("[v0] No data returned for email:", email)
-    return null
-  }
-
-  console.log("[v0] User found:", data)
-
-  return {
-    ...data,
-    role: getRoleEnumValue(data.role),
-  }
+  return queryOne<User>(
+    `SELECT id, name, email, phone, role, area, is_active, created_at, updated_at
+     FROM users WHERE email = $1`,
+    [email.toLowerCase()]
+  )
 }
 
-export async function createUser(userData: CreateUserData): Promise<User> {
-  console.log("[v0] Attempting to create user with data:", userData)
-  
-  // Verificar si el usuario ya existe
-  try {
-  const existingUser = await getUserByEmail(userData.email)
-  if (existingUser) {
-      console.log("[v0] User already exists:", existingUser)
-    throw new Error("Ya existe un usuario con este email")
-    }
-  } catch (error) {
-    // Si hay error al buscar, continuar con la creación
-    console.warn("[v0] Warning checking existing user:", error)
-  }
+export async function createUser(data: CreateUserData): Promise<User> {
+  const existing = await getUserByEmail(data.email)
+  if (existing) throw new Error('Ya existe un usuario con este email')
 
-  const supabase = await createClient()
-
-  // No incluir id para nuevos usuarios - Supabase lo generará automáticamente
-  const dbUserData = {
-    email: userData.email,
-    name: userData.name,
-    phone: userData.phone || null,
-    role: getRoleDbValue(userData.role),
-    area: userData.area ?? null,
-  }
-
-  console.log("[v0] Inserting user data:", dbUserData)
-
-  const { data, error } = await supabase.from("users").insert([dbUserData]).select().single()
-
-  if (error) {
-    console.error("[v0] Error creating user:", error)
-    console.error("[v0] Error details:", {
-      code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint
-    })
-    throw new Error(`Error al crear usuario: ${error.message}`)
-  }
-
-  console.log("[v0] User created successfully:", data)
-
-  return {
-    ...data,
-    role: getRoleEnumValue(data.role),
-  }
+  const row = await queryOne<User>(
+    `INSERT INTO users (name, email, phone, role, area)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING id, name, email, phone, role, area, is_active, created_at, updated_at`,
+    [data.name, data.email.toLowerCase(), data.phone ?? null, data.role, data.area ?? null]
+  )
+  if (!row) throw new Error('Error al crear usuario')
+  return row
 }
 
-export async function updateUser(id: string, userData: Partial<CreateUserData>): Promise<User> {
-  const supabase = await createClient()
+export async function updateUser(id: string, data: Partial<CreateUserData>): Promise<User> {
+  const fields: string[] = []
+  const values: any[] = []
+  let idx = 1
 
-  const dbUserData = userData.role
-    ? {
-        ...userData,
-        role: getRoleDbValue(userData.role),
-      }
-    : userData
+  if (data.name !== undefined) { fields.push(`name = $${idx++}`); values.push(data.name) }
+  if (data.email !== undefined) { fields.push(`email = $${idx++}`); values.push(data.email.toLowerCase()) }
+  if (data.phone !== undefined) { fields.push(`phone = $${idx++}`); values.push(data.phone) }
+  if (data.role !== undefined) { fields.push(`role = $${idx++}`); values.push(data.role) }
+  if (data.area !== undefined) { fields.push(`area = $${idx++}`); values.push(data.area) }
 
-  const { data, error } = await supabase.from("users").update(dbUserData).eq("id", id).select().single()
+  if (fields.length === 0) throw new Error('No hay campos para actualizar')
 
-  if (error) {
-    console.error("[v0] Error updating user:", error)
-    throw new Error("Error al actualizar usuario")
-  }
-
-  return {
-    ...data,
-    role: getRoleEnumValue(data.role),
-  }
+  values.push(id)
+  const row = await queryOne<User>(
+    `UPDATE users SET ${fields.join(', ')} WHERE id = $${idx}
+     RETURNING id, name, email, phone, role, area, is_active, created_at, updated_at`,
+    values
+  )
+  if (!row) throw new Error('Usuario no encontrado')
+  return row
 }
 
 export async function deleteUser(id: string): Promise<void> {
-  const supabase = await createClient()
-
-  console.log("[v0] Server-side: Attempting to delete user with ID:", id)
-  
-  // Primero verificar si el usuario existe
-  const { data: existingUser, error: fetchError } = await supabase
-    .from("users")
-    .select("id, email, name")
-    .eq("id", id)
-    .single()
-  
-  console.log("[v0] Server-side: User exists check - data:", existingUser, "error:", fetchError)
-  
-  if (fetchError && fetchError.code === 'PGRST116') {
-    console.warn("[v0] Server-side: User not found with ID:", id)
-    return
-  }
-  
-  if (fetchError) {
-    console.error("[v0] Server-side: Error checking user existence:", fetchError)
-    throw new Error("Error al verificar usuario")
-  }
-  
-  if (!existingUser) {
-    console.warn("[v0] Server-side: User not found with ID:", id)
-    return
-  }
-  
-  console.log("[v0] Server-side: User found, proceeding with deletion:", existingUser)
-  
-  // Limpiar referencias primero
-  console.log("[v0] Server-side: Cleaning up references...")
-  
-  const { error: updateTicketsError } = await supabase
-    .from("tickets")
-    .update({ assigned_to: null })
-    .eq("assigned_to", id)
-  
-  // Intentar actualizar tickets creados por el usuario (asignar al admin)
-  const { error: updateCreatedByError } = await supabase
-    .from("tickets")
-    .update({ created_by: "2af4b6bf-01fe-4b9f-9611-35178dc75c30" })
-    .eq("created_by", id)
-  
-  if (updateCreatedByError) {
-    console.warn("[v0] Server-side: Warning updating ticket creators:", updateCreatedByError)
-  }
-  
-  const { error: deleteCommentsError } = await supabase
-    .from("comments")
-    .delete()
-    .eq("user_id", id)
-  
-  // Intentar eliminación directa
-  const { data: deleteData, error } = await supabase
-    .from("users")
-    .delete()
-    .eq("id", id)
-    .select("id")
-  
-  console.log("[v0] Server-side: Delete result - data:", deleteData, "error:", error)
-
-  // Si hay error O si no se devolvieron datos (RLS bloqueó la eliminación)
-  if (error || !deleteData || deleteData.length === 0) {
-    console.log("[v0] Server-side: Direct deletion failed or blocked by RLS, attempting RLS bypass...")
-    
-    // Usar función RPC para bypasear RLS
-    const { data: deleteData2, error: error2 } = await supabase.rpc('delete_user_bypass_rls', { user_id: id })
-    
-    if (error2) {
-      console.error("[v0] Server-side: RLS bypass failed:", error2)
-      throw new Error("Error al eliminar usuario: " + (error?.message || "RLS bypass failed"))
-    }
-    
-    console.log("[v0] Server-side: User deleted with RLS bypass:", deleteData2)
-  } else {
-    console.log("[v0] Server-side: User deleted successfully with direct method:", deleteData)
-  }
-  
-  // Verificar que realmente se eliminó
-  const { data: verifyUser, error: verifyError } = await supabase
-    .from("users")
-    .select("id")
-    .eq("id", id)
-    .single()
-  
-  console.log("[v0] Server-side: Verification after deletion - data:", verifyUser, "error:", verifyError)
-  
-  if (verifyUser) {
-    console.error("[v0] Server-side: User still exists after deletion attempt!")
-    throw new Error("El usuario no se eliminó correctamente")
-  }
-  
-  console.log("[v0] Server-side: User deletion verified successfully")
+  // Desvincular tickets asignados al usuario
+  await query(`UPDATE tickets SET assigned_to = NULL WHERE assigned_to = $1`, [id])
+  // Eliminar comentarios del usuario
+  await query(`DELETE FROM comments WHERE user_id = $1`, [id])
+  // Marcar inactivo (soft delete) para no romper tickets creados por el usuario
+  await query(`UPDATE users SET is_active = FALSE WHERE id = $1`, [id])
 }
 
-function getRoleDbValue(role: Role): string {
-  switch (role) {
-    case Role.GERENTE:
-      return "gerente"
-    case Role.COORDINADOR:
-      return "coordinador"
-    case Role.ASISTENCIA:
-      return "asistencia"
-    case Role.EMPLEADO:
-    default:
-      return "empleado"
-  }
-}
+// ─── Client-side (browser) — llama las API routes ─────────────────────────────
 
-function getRoleEnumValue(dbRole: string): Role {
-  switch (dbRole) {
-    case "gerente":
-      return Role.GERENTE
-    case "coordinador":
-      return Role.COORDINADOR
-    case "asistencia":
-      return Role.ASISTENCIA
-    // Mapeo de roles legacy
-    case "admin":
-      return Role.COORDINADOR
-    case "level1":
-    case "level2":
-      return Role.ASISTENCIA
-    case "empleado":
-    case "user":
-    default:
-      return Role.EMPLEADO
-  }
-}
-
-// Client-side functions for browser usage
 export const userServiceClient = {
   async getAllUsers(): Promise<User[]> {
-    try {
-      console.log("[v0] Client-side getAllUsers: Starting to fetch users from Supabase...")
-      const supabase = createBrowserClient()
-
-      const { data, error } = await supabase.from("users").select("*").order("created_at", { ascending: false })
-
-      if (error) {
-        console.error("[v0] Client-side Error fetching users:", error)
-        console.log("[v0] Attempting fallback to mock client for users...")
-        try {
-          const mockSupabase = createMockClient()
-          const { data: mockData, error: mockError } = await mockSupabase
-            .from("users")
-            .select("*")
-            .order("created_at", { ascending: false })
-
-          if (mockError) {
-             console.error("[v0] Mock client also failed for users:", mockError)
-             return []
-          }
-
-          console.log("[v0] Mock users loaded:", mockData?.length)
-          return (mockData || []).map((user: Record<string, any>) => ({
-            ...user,
-            role: getRoleEnumValue(user.role),
-          } as User))
-        } catch (mockCatchError) {
-           console.error("[v0] Mock client exception for users:", mockCatchError)
-           return []
-        }
-      }
-
-      console.log("[v0] Client-side getAllUsers: Successfully fetched users:", data?.length || 0)
-      console.log("[v0] Client-side getAllUsers: Users data:", data)
-
-      return (data || []).map((user: Record<string, any>) => ({
-        ...user,
-        role: getRoleEnumValue(user.role),
-      }))
-    } catch (error) {
-      console.error("[v0] Client-side Database connection error:", error)
-      console.log("[v0] Attempting fallback to mock client for users after exception...")
-      try {
-        const mockSupabase = createMockClient()
-        const { data: mockData, error: mockError } = await mockSupabase
-          .from("users")
-          .select("*")
-          .order("created_at", { ascending: false })
-
-        if (mockError) {
-           console.error("[v0] Mock client also failed for users:", mockError)
-           return []
-        }
-
-        console.log("[v0] Mock users loaded:", mockData?.length)
-        return (mockData || []).map((user: Record<string, any>) => ({
-          ...user,
-          role: getRoleEnumValue(user.role),
-        } as User))
-      } catch (mockCatchError) {
-         console.error("[v0] Mock client exception for users:", mockCatchError)
-         return []
-      }
-    }
-  },
-
-  async getUserByEmail(email: string): Promise<User | null> {
-    const supabase = createBrowserClient()
-
-    console.log("[v0] Client-side: Searching for user with email:", email)
-
-    const { data, error } = await supabase.from("users").select("*").eq("email", email).maybeSingle()
-
-    if (error) {
-      console.error("[v0] Client-side: Error fetching user by email:", error)
-      console.log("[v0] Attempting fallback to mock client for getUserByEmail...")
-      try {
-        const mockSupabase = createMockClient()
-        const { data: mockData, error: mockError } = await mockSupabase
-          .from("users")
-          .select("*")
-          .eq("email", email)
-          .single()
-
-        if (mockError) {
-          console.error("[v0] Mock client also failed for getUserByEmail:", mockError)
-          // Si falla el mock, intentamos el retry original o lanzamos error
-        } else if (mockData) {
-           console.log("[v0] Mock user found:", mockData)
-           return {
-             ...mockData,
-             role: getRoleEnumValue(mockData.role),
-           }
-        }
-      } catch (mockCatchError) {
-         console.error("[v0] Mock client exception for getUserByEmail:", mockCatchError)
-      }
-
-      console.error("[v0] Client-side: Error details:", {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint
-      })
-      
-      // Si es un error de permisos (406), intentar con una consulta más simple
-      if (error.code === "PGRST301" || error.message?.includes("406")) {
-        console.log("[v0] Client-side: Retrying with simpler query...")
-        try {
-          const { data: retryData, error: retryError } = await supabase
-            .from("users")
-            .select("id, name, email, role, created_at, updated_at")
-            .eq("email", email)
-            .maybeSingle()
-          
-          if (retryError) {
-            console.error("[v0] Client-side: Retry also failed:", retryError)
-            throw new Error("Error al buscar usuario por email")
-          }
-          
-          if (!retryData) {
-            return null
-          }
-          
-          console.log("[v0] Client-side: User found with retry:", retryData)
-          return {
-            ...retryData,
-            role: getRoleEnumValue(retryData.role),
-          }
-        } catch (retryError) {
-          console.error("[v0] Client-side: Retry exception:", retryError)
-          throw new Error("Error al buscar usuario por email")
-        }
-      }
-      
-      throw new Error("Error al buscar usuario por email")
-    }
-
-    if (!data) {
-      console.log("[v0] Client-side: User not found with email:", email)
-      return null
-    }
-
-    console.log("[v0] Client-side: User found:", data)
-    return {
-      ...data,
-      role: getRoleEnumValue(data.role),
-    }
-  },
-
-  async createUser(userData: CreateUserData): Promise<User> {
-    console.log("[v0] Client-side: Attempting to create user with data:", userData)
-    
-    try {
-    const existingUser = await this.getUserByEmail(userData.email)
-    if (existingUser) {
-        console.log("[v0] Client-side: User already exists:", existingUser)
-      throw new Error("Ya existe un usuario con este email")
-      }
-    } catch (error) {
-      console.warn("[v0] Client-side: Warning checking existing user:", error)
-    }
-
-    const supabase = createBrowserClient()
-
-    // No incluir id para nuevos usuarios - Supabase lo generará automáticamente
-    const dbUserData = {
-      email: userData.email,
-      name: userData.name,
-      phone: userData.phone || null,
-      role: getRoleDbValue(userData.role),
-      area: userData.area ?? null,
-    }
-
-    console.log("[v0] Client-side: Inserting user data:", dbUserData)
-
-    const { data, error } = await supabase.from("users").insert([dbUserData]).select().single()
-
-    if (error) {
-      console.error("[v0] Client-side: Error creating user:", error)
-      console.error("[v0] Client-side: Error details:", {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint
-      })
-      throw new Error(`Error al crear usuario: ${error.message}`)
-    }
-
-    console.log("[v0] Client-side: User created successfully:", data)
-
-    return {
-      ...data,
-      role: getRoleEnumValue(data.role),
-    }
-  },
-
-  async updateUser(id: string, userData: Partial<CreateUserData>): Promise<User> {
-    const supabase = createBrowserClient()
-
-    const dbUserData = userData.role
-      ? {
-          ...userData,
-          role: getRoleDbValue(userData.role),
-        }
-      : userData
-
-    const { data, error } = await supabase.from("users").update(dbUserData).eq("id", id).select().single()
-
-    if (error) {
-      console.error("[v0] Error updating user:", error)
-      throw new Error("Error al actualizar usuario")
-    }
-
-    return {
-      ...data,
-      role: getRoleEnumValue(data.role),
-    }
+    const res = await fetch('/api/users')
+    if (!res.ok) throw new Error('Error al obtener usuarios')
+    return res.json()
   },
 
   async getUserById(id: string): Promise<User | null> {
-    const supabase = createBrowserClient()
+    const res = await fetch(`/api/users/${id}`)
+    if (res.status === 404) return null
+    if (!res.ok) throw new Error('Error al obtener usuario')
+    return res.json()
+  },
 
-    const { data, error } = await supabase.from("users").select("*").eq("id", id).single()
+  async getUserByEmail(email: string): Promise<User | null> {
+    const res = await fetch(`/api/users?email=${encodeURIComponent(email)}`)
+    if (!res.ok) throw new Error('Error al obtener usuario')
+    const users: User[] = await res.json()
+    return users.find(u => u.email.toLowerCase() === email.toLowerCase()) ?? null
+  },
 
-    if (error) {
-      if (error.code === "PGRST116") {
-        return null // User not found
-      }
-      console.error("[v0] Error fetching user:", error)
-      throw new Error("Error al obtener usuario")
+  async createUser(data: CreateUserData): Promise<User> {
+    const res = await fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (!res.ok) {
+      const err = await res.json()
+      throw new Error(err.error || 'Error al crear usuario')
     }
+    return res.json()
+  },
 
-    if (!data) {
-      return null
+  async updateUser(id: string, data: Partial<CreateUserData>): Promise<User> {
+    const res = await fetch(`/api/users/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (!res.ok) {
+      const err = await res.json()
+      throw new Error(err.error || 'Error al actualizar usuario')
     }
-
-    return {
-      ...data,
-      role: getRoleEnumValue(data.role),
-    }
+    return res.json()
   },
 
   async deleteUser(id: string): Promise<void> {
-    const supabase = createBrowserClient()
-
-    console.log("[v0] Attempting to delete user with ID:", id)
-    
-    // Primero verificar si el usuario existe
-    const { data: existingUser, error: fetchError } = await supabase
-      .from("users")
-      .select("id, email, name")
-      .eq("id", id)
-      .single()
-    
-    console.log("[v0] User exists check - data:", existingUser, "error:", fetchError)
-    
-    if (fetchError && fetchError.code === 'PGRST116') {
-      console.warn("[v0] User not found with ID:", id)
-      // No lanzar error, simplemente confirmar que no existe
-      return
+    const res = await fetch(`/api/users/${id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const err = await res.json()
+      throw new Error(err.error || 'Error al eliminar usuario')
     }
-    
-    if (fetchError) {
-      console.error("[v0] Error checking user existence:", fetchError)
-      throw new Error("Error al verificar usuario")
-    }
-    
-    if (!existingUser) {
-      console.warn("[v0] User not found with ID:", id)
-      return
-    }
-    
-    console.log("[v0] User found, proceeding with deletion:", existingUser)
-    
-    // Primero, limpiar referencias en tickets y comentarios
-    console.log("[v0] Cleaning up ticket references...")
-    
-    // Actualizar tickets asignados al usuario (poner como sin asignar)
-    const { error: updateTicketsError } = await supabase
-      .from("tickets")
-      .update({ assigned_to: null })
-      .eq("assigned_to", id)
-    
-    if (updateTicketsError) {
-      console.warn("[v0] Warning updating tickets:", updateTicketsError)
-    }
-    
-    // Intentar actualizar tickets creados por el usuario (asignar al admin)
-    // Intentar diferentes nombres de columna
-    try {
-      const { error: updateRequesterError } = await supabase
-        .from("tickets")
-        .update({ requester_id: "2af4b6bf-01fe-4b9f-9611-35178dc75c30" })
-        .eq("requester_id", id)
-      
-      if (updateRequesterError) {
-        console.warn("[v0] Warning updating ticket requesters (requester_id):", updateRequesterError)
-        
-        // Intentar con created_by
-        const { error: updateCreatedByError } = await supabase
-          .from("tickets")
-          .update({ created_by: "2af4b6bf-01fe-4b9f-9611-35178dc75c30" })
-          .eq("created_by", id)
-        
-        if (updateCreatedByError) {
-          console.warn("[v0] Warning updating ticket requesters (created_by):", updateCreatedByError)
-        }
-      }
-    } catch (error) {
-      console.warn("[v0] Error updating ticket requesters:", error)
-    }
-    
-    // Intentar eliminar comentarios del usuario
-    try {
-      const { error: deleteCommentsError } = await supabase
-        .from("comments")
-        .delete()
-        .eq("user_id", id)
-      
-      if (deleteCommentsError) {
-        console.warn("[v0] Warning deleting comments (comments table):", deleteCommentsError)
-        
-        // Intentar con ticket_comments
-        const { error: deleteTicketCommentsError } = await supabase
-          .from("ticket_comments")
-          .delete()
-          .eq("user_id", id)
-        
-        if (deleteTicketCommentsError) {
-          console.warn("[v0] Warning deleting comments (ticket_comments table):", deleteTicketCommentsError)
-        }
-      }
-    } catch (error) {
-      console.warn("[v0] Error deleting comments:", error)
-    }
-    
-    console.log("[v0] References cleaned up, now deleting user...")
-    
-    // Intentar eliminación directa primero
-    const { data: deleteData, error } = await supabase
-      .from("users")
-      .delete()
-      .eq("id", id)
-      .select("id")
-    
-    console.log("[v0] Delete result - data:", deleteData, "error:", error)
-
-    // Si hay error O si no se devolvieron datos (RLS bloqueó la eliminación)
-    if (error || !deleteData || deleteData.length === 0) {
-      console.log("[v0] Direct deletion failed or blocked by RLS, attempting RLS bypass...")
-      
-      // Usar función RPC para bypasear RLS
-      const { data: deleteData2, error: error2 } = await supabase.rpc('delete_user_bypass_rls', { user_id: id })
-      
-      if (error2) {
-        console.error("[v0] RLS bypass also failed:", error2)
-        throw new Error("Error al eliminar usuario: " + (error?.message || "RLS bypass failed"))
-      }
-      
-      console.log("[v0] User deleted successfully with RLS bypass:", deleteData2)
-    } else {
-      console.log("[v0] User deleted successfully with direct method:", deleteData)
-    }
-    
-    // Verificar que realmente se eliminó
-    const { data: verifyUser, error: verifyError } = await supabase
-      .from("users")
-      .select("id")
-      .eq("id", id)
-      .single()
-    
-    console.log("[v0] Verification after deletion - data:", verifyUser, "error:", verifyError)
-    
-    if (verifyUser) {
-      console.error("[v0] User still exists after deletion attempt!")
-      throw new Error("El usuario no se eliminó correctamente")
-    }
-    
-    console.log("[v0] User deletion verified successfully")
   },
 }

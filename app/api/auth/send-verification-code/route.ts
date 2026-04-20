@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generar código OTP
-    const code = generateOTPCode(email)
+    const code = await generateOTPCode(email)
 
     // Enviar código por email
     const emailSent = await emailService.sendVerificationCode(email, code)

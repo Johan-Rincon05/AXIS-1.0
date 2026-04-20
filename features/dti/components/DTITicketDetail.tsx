@@ -26,7 +26,6 @@ interface DTITicketDetailProps {
   onComment: () => void
   onResolve: () => void
   onDelete: () => void
-  onUpdateTicket: (id: string, data: any) => Promise<void>
   onClose: () => void
 }
 

@@ -5,7 +5,10 @@
       "Bash(gh auth *)",
       "Bash(gh repo *)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "Bash(grep -E \"\\\\.\\(js|ts|py|jsx|tsx|vue|php|java|cs|rb|go|swift|kt\\)$\")"
     ]
   },
   "enableAllProjectMcpServers": true,

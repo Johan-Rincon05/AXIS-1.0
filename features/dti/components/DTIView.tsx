@@ -142,7 +142,6 @@ export function DTIView() {
             onComment={() => setShowComment(true)}
             onResolve={() => setShowResolve(true)}
             onDelete={() => handleDelete(selected.id)}
-            onUpdateTicket={updateTicket}
             onClose={() => setSelected(null)}
           />
         ) : (

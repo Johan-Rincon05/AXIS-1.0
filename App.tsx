@@ -21,7 +21,7 @@ function AppContent() {
     setIsSendingCode(true)
     setLoginError('')
     try {
-      const res = await fetch('/api/email/send-code', {
+      const res = await fetch('/api/auth/send-verification-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -38,7 +38,7 @@ function AppContent() {
   const handleVerifyCode = useCallback(async (email: string, code: string) => {
     setLoginError('')
     try {
-      const res = await fetch('/api/email/verify-code', {
+      const res = await fetch('/api/auth/verify-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, code }),

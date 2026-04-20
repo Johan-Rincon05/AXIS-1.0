@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar el código OTP
-    const isValid = verifyOTPCode(email, code)
+    const isValid = await verifyOTPCode(email, code)
 
     if (!isValid) {
       return NextResponse.json(

@@ -223,7 +223,7 @@ class EmailService {
     role: string,
     area?: string | null,
   ): Promise<boolean> {
-    const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://dashboard.emprendetucarrera.com.co'
+    const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://axis-axissystem-zfzurp-ac0caf-85-31-231-55.traefik.me'
 
     // Role display label
     const roleLabels: Record<string, string> = {

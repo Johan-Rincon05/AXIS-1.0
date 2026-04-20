@@ -31,6 +31,7 @@ export function UsersView() {
   const [filterArea, setFilterArea] = useState<Area | 'all'>('all')
   const [filterRole, setFilterRole] = useState<Role | 'all'>('all')
   const [filterStatus, setFilterStatus] = useState<'active' | 'inactive' | 'all'>('all')
+  const [resendingId, setResendingId] = useState<string | null>(null)
 
   const filtered = users.filter(u => {
     const matchSearch = !search ||
@@ -58,6 +59,27 @@ export function UsersView() {
       setEditingUser(null)
     } catch (e: any) {
       showError('Error', e.message || 'No se pudo guardar el usuario.')
+    }
+  }
+
+  const handleResendInvitation = async (user: User) => {
+    setResendingId(user.id)
+    try {
+      const res = await fetch('/api/email/resend-invitation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      })
+      if (res.ok) {
+        showSuccess('Correo enviado', `Invitación reenviada a ${user.email}`)
+      } else {
+        const data = await res.json()
+        showError('Error', data.error || 'No se pudo enviar el correo.')
+      }
+    } catch {
+      showError('Error', 'Error de red al enviar el correo.')
+    } finally {
+      setResendingId(null)
     }
   }
 
@@ -185,6 +207,21 @@ export function UsersView() {
                           Editar
                         </button>
                       )}
+                      <button
+                        onClick={() => handleResendInvitation(user)}
+                        disabled={resendingId === user.id}
+                        className="text-xs text-zinc-400 hover:text-zinc-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+                        title="Reenviar correo de invitación"
+                      >
+                        {resendingId === user.id ? (
+                          <span className="h-3 w-3 rounded-full border border-zinc-500 border-t-transparent animate-spin inline-block" />
+                        ) : (
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                        )}
+                        Invitación
+                      </button>
                       {user.id !== currentUser?.id && (
                         <button
                           onClick={() => handleToggleActive(user)}

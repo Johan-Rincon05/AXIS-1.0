@@ -11,7 +11,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- TIPOS ENUM
 -- =============================================================================
 
-CREATE TYPE user_role AS ENUM ('Empleado', 'Gerente', 'Coordinador', 'Asistencia');
+CREATE TYPE user_role AS ENUM ('SuperUser', 'Empleado', 'Gerente', 'Coordinador', 'Asistencia');
 CREATE TYPE user_area AS ENUM ('DTI', 'CAM');
 
 CREATE TYPE ticket_status AS ENUM ('Abierto', 'En Progreso', 'Resuelto', 'Cerrado');

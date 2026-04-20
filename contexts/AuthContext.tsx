@@ -56,6 +56,7 @@ export function useAuth() {
 }
 
 // Role helpers
+export const isSuperUser = (role: Role) => role === Role.SUPER_USER
 export const isEmpleado = (role: Role) => role === Role.EMPLEADO
 export const isAsistencia = (role: Role) => role === Role.ASISTENCIA
 export const isCoordinador = (role: Role) => role === Role.COORDINADOR
@@ -63,4 +64,4 @@ export const isGerente = (role: Role) => role === Role.GERENTE
 export const canManageTickets = (role: Role) => [Role.ASISTENCIA, Role.COORDINADOR, Role.GERENTE].includes(role)
 export const canAssignTickets = (role: Role) => [Role.COORDINADOR, Role.GERENTE].includes(role)
 export const canViewSLA = (role: Role) => [Role.COORDINADOR, Role.GERENTE].includes(role)
-export const canManageUsers = (role: Role) => [Role.COORDINADOR, Role.GERENTE].includes(role)
+export const canManageUsers = (role: Role) => role === Role.SUPER_USER

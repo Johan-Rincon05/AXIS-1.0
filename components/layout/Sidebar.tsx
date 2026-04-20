@@ -1,6 +1,6 @@
 'use client'
 
-import { useAuth, canManageUsers, canViewSLA } from '@/contexts/AuthContext'
+import { useAuth, canViewSLA, isSuperUser } from '@/contexts/AuthContext'
 import { Role } from '@/types'
 import DarkModeToggle from '@/components/DarkModeToggle'
 
@@ -22,13 +22,14 @@ const NavItem = ({
   active: boolean
   onClick: () => void
   children: React.ReactNode
-  accent?: 'blue' | 'violet' | 'emerald' | 'amber'
+  accent?: 'blue' | 'violet' | 'emerald' | 'amber' | 'rose'
 }) => {
   const activeClasses = {
     blue: 'bg-blue-600 text-white shadow-lg shadow-blue-500/20',
     violet: 'bg-violet-600 text-white shadow-lg shadow-violet-500/20',
     emerald: 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20',
     amber: 'bg-amber-500 text-white shadow-lg shadow-amber-500/20',
+    rose: 'bg-rose-600 text-white shadow-lg shadow-rose-500/20',
   }
 
   return (
@@ -45,11 +46,21 @@ const NavItem = ({
   )
 }
 
+const ROLE_BADGE_COLORS: Record<Role, string> = {
+  [Role.SUPER_USER]: 'bg-rose-900/60 text-rose-300',
+  [Role.GERENTE]: 'bg-amber-900/60 text-amber-300',
+  [Role.COORDINADOR]: 'bg-blue-900/60 text-blue-300',
+  [Role.ASISTENCIA]: 'bg-violet-900/60 text-violet-300',
+  [Role.EMPLEADO]: 'bg-zinc-700 text-zinc-300',
+}
+
 export function Sidebar({ currentView, onViewChange, onLogout, isSyncing }: SidebarProps) {
   const { currentUser } = useAuth()
   if (!currentUser) return null
 
   const role = currentUser.role
+  const area = currentUser.area
+  const superUser = isSuperUser(role)
 
   return (
     <aside className="w-64 bg-zinc-950 border-r border-zinc-800 flex flex-col">
@@ -78,73 +89,87 @@ export function Sidebar({ currentView, onViewChange, onLogout, isSyncing }: Side
 
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {/* All tickets */}
-        <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest px-4 pt-3 pb-1">
-          Vista general
-        </p>
-        <NavItem active={currentView === 'all-tickets'} onClick={() => onViewChange('all-tickets')} accent="emerald">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-          </svg>
-          Todos los Tickets
-        </NavItem>
-        <NavItem active={currentView === 'resolved'} onClick={() => onViewChange('resolved')} accent="emerald">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          Resueltos
-        </NavItem>
 
-        {/* DTI */}
-        <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest px-4 pt-4 pb-1">
-          Áreas
-        </p>
-        <NavItem active={currentView === 'dti'} onClick={() => onViewChange('dti')} accent="blue">
-          <span className="w-4 h-4 rounded flex items-center justify-center bg-blue-500/20 text-blue-400 text-[10px] font-black">D</span>
-          FixIT — DTI
-        </NavItem>
-        <NavItem active={currentView === 'cam'} onClick={() => onViewChange('cam')} accent="violet">
-          <span className="w-4 h-4 rounded flex items-center justify-center bg-violet-500/20 text-violet-400 text-[10px] font-black">C</span>
-          CAM
-        </NavItem>
-
-        {/* Management */}
-        {(canManageUsers(role) || canViewSLA(role)) && (
+        {/* SuperUser: solo gestión de usuarios */}
+        {superUser && (
           <>
-            <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest px-4 pt-4 pb-1">
-              Gestión
+            <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest px-4 pt-3 pb-1">
+              Administración
             </p>
-            {canViewSLA(role) && (
-              <NavItem active={currentView === 'sla'} onClick={() => onViewChange('sla')} accent="amber">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                SLA & Métricas
-              </NavItem>
-            )}
-            {canManageUsers(role) && (
-              <NavItem active={currentView === 'users'} onClick={() => onViewChange('users')} accent="emerald">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-                Usuarios
-              </NavItem>
-            )}
+            <NavItem active={currentView === 'users'} onClick={() => onViewChange('users')} accent="rose">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+              Gestión de Usuarios
+            </NavItem>
           </>
         )}
 
-        {/* Mis métricas — solo ASISTENCIA */}
-        {role === Role.ASISTENCIA && (
+        {/* Usuarios con área: vista general + su área */}
+        {!superUser && (
           <>
-            <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest px-4 pt-4 pb-1">
-              Personal
+            <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest px-4 pt-3 pb-1">
+              Vista general
             </p>
-            <NavItem active={currentView === 'sla'} onClick={() => onViewChange('sla')} accent="amber">
+            <NavItem active={currentView === 'all-tickets'} onClick={() => onViewChange('all-tickets')} accent="emerald">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
               </svg>
-              Mis Métricas
+              Todos los Tickets
             </NavItem>
+            <NavItem active={currentView === 'resolved'} onClick={() => onViewChange('resolved')} accent="emerald">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Resueltos
+            </NavItem>
+
+            {/* Área específica */}
+            <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest px-4 pt-4 pb-1">
+              Mi Área
+            </p>
+            {(!area || area === 'DTI') && (
+              <NavItem active={currentView === 'dti'} onClick={() => onViewChange('dti')} accent="blue">
+                <span className="w-4 h-4 rounded flex items-center justify-center bg-blue-500/20 text-blue-400 text-[10px] font-black">D</span>
+                FixIT — DTI
+              </NavItem>
+            )}
+            {(!area || area === 'CAM') && (
+              <NavItem active={currentView === 'cam'} onClick={() => onViewChange('cam')} accent="violet">
+                <span className="w-4 h-4 rounded flex items-center justify-center bg-violet-500/20 text-violet-400 text-[10px] font-black">C</span>
+                CAM
+              </NavItem>
+            )}
+
+            {/* SLA — solo Coordinador y Gerente */}
+            {canViewSLA(role) && (
+              <>
+                <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest px-4 pt-4 pb-1">
+                  Gestión
+                </p>
+                <NavItem active={currentView === 'sla'} onClick={() => onViewChange('sla')} accent="amber">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  SLA & Métricas
+                </NavItem>
+              </>
+            )}
+
+            {/* Mis métricas — solo ASISTENCIA */}
+            {role === Role.ASISTENCIA && (
+              <>
+                <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest px-4 pt-4 pb-1">
+                  Personal
+                </p>
+                <NavItem active={currentView === 'sla'} onClick={() => onViewChange('sla')} accent="amber">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Mis Métricas
+                </NavItem>
+              </>
+            )}
           </>
         )}
       </nav>
@@ -154,12 +179,7 @@ export function Sidebar({ currentView, onViewChange, onLogout, isSyncing }: Side
         <div className="px-4 py-3 rounded-xl bg-zinc-900 mb-2">
           <p className="text-white text-sm font-semibold truncate">{currentUser.name}</p>
           <div className="flex items-center gap-2 mt-1">
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-              role === Role.GERENTE ? 'bg-amber-900/60 text-amber-300' :
-              role === Role.COORDINADOR ? 'bg-blue-900/60 text-blue-300' :
-              role === Role.ASISTENCIA ? 'bg-violet-900/60 text-violet-300' :
-              'bg-zinc-700 text-zinc-300'
-            }`}>
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${ROLE_BADGE_COLORS[role] ?? 'bg-zinc-700 text-zinc-300'}`}>
               {role}
             </span>
             {currentUser.area && (

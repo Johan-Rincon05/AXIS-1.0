@@ -8,6 +8,7 @@ import { UserModal } from './UserModal'
 import { useNotifications } from '@/hooks/useNotifications'
 
 const ROLE_BADGE: Record<Role, string> = {
+  [Role.SUPER_USER]: 'bg-rose-900/50 text-rose-300 border-rose-700',
   [Role.GERENTE]: 'bg-amber-900/50 text-amber-300 border-amber-700',
   [Role.COORDINADOR]: 'bg-blue-900/50 text-blue-300 border-blue-700',
   [Role.ASISTENCIA]: 'bg-violet-900/50 text-violet-300 border-violet-700',
@@ -21,7 +22,7 @@ const AREA_BADGE: Record<string, string> = {
 
 export function UsersView() {
   const { currentUser } = useAuth()
-  const { users, createUser, updateUser, deleteUser } = useUsers()
+  const { users, createUser, updateUser, inactivateUser, activateUser } = useUsers()
   const { showSuccess, showError } = useNotifications()
 
   const [showModal, setShowModal] = useState(false)
@@ -29,6 +30,7 @@ export function UsersView() {
   const [search, setSearch] = useState('')
   const [filterArea, setFilterArea] = useState<Area | 'all'>('all')
   const [filterRole, setFilterRole] = useState<Role | 'all'>('all')
+  const [filterStatus, setFilterStatus] = useState<'active' | 'inactive' | 'all'>('all')
 
   const filtered = users.filter(u => {
     const matchSearch = !search ||
@@ -36,7 +38,11 @@ export function UsersView() {
       u.email.toLowerCase().includes(search.toLowerCase())
     const matchArea = filterArea === 'all' || u.area === filterArea
     const matchRole = filterRole === 'all' || u.role === filterRole
-    return matchSearch && matchArea && matchRole
+    const matchStatus =
+      filterStatus === 'all' ||
+      (filterStatus === 'active' && u.is_active !== false) ||
+      (filterStatus === 'inactive' && u.is_active === false)
+    return matchSearch && matchArea && matchRole && matchStatus
   })
 
   const handleSave = async (data: any) => {
@@ -55,12 +61,21 @@ export function UsersView() {
     }
   }
 
-  const handleDelete = async (user: User) => {
-    if (!confirm(`¿Eliminar a ${user.name}?`)) return
+  const handleToggleActive = async (user: User) => {
+    const isActive = user.is_active !== false
+    const action = isActive ? 'inactivar' : 'activar'
+    if (!confirm(`¿Deseas ${action} a ${user.name}?`)) return
     try {
-      await deleteUser(user.id)
-      showSuccess('Eliminado', 'Usuario eliminado.')
-    } catch { showError('Error', 'No se pudo eliminar el usuario.') }
+      if (isActive) {
+        await inactivateUser(user.id)
+        showSuccess('Inactivado', `${user.name} ha sido inactivado.`)
+      } else {
+        await activateUser(user.id)
+        showSuccess('Activado', `${user.name} ha sido activado.`)
+      }
+    } catch {
+      showError('Error', `No se pudo ${action} el usuario.`)
+    }
   }
 
   return (
@@ -107,6 +122,15 @@ export function UsersView() {
           <option value="all">Todos los roles</option>
           {Object.values(Role).map(r => <option key={r} value={r}>{r}</option>)}
         </select>
+        <select
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value as 'active' | 'inactive' | 'all')}
+          className="px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs focus:outline-none"
+        >
+          <option value="all">Todos los estados</option>
+          <option value="active">Activos</option>
+          <option value="inactive">Inactivos</option>
+        </select>
         <span className="text-zinc-600 text-xs ml-auto">{filtered.length} resultados</span>
       </div>
 
@@ -115,7 +139,7 @@ export function UsersView() {
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-zinc-900 border-b border-zinc-800">
             <tr>
-              {['Nombre', 'Correo', 'Área', 'Rol', 'Teléfono', ''].map(h => (
+              {['Nombre', 'Correo', 'Área', 'Rol', 'Estado', 'Teléfono', ''].map(h => (
                 <th key={h} className="px-5 py-3 text-left text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
                   {h}
                 </th>
@@ -123,41 +147,57 @@ export function UsersView() {
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-800/50">
-            {filtered.map(user => (
-              <tr key={user.id} className="hover:bg-zinc-800/30 transition-colors group">
-                <td className="px-5 py-3.5 text-zinc-200 font-medium">{user.name}</td>
-                <td className="px-5 py-3.5 text-zinc-400 text-xs">{user.email}</td>
-                <td className="px-5 py-3.5">
-                  {user.area ? (
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${AREA_BADGE[user.area] || 'bg-zinc-800 text-zinc-400'}`}>
-                      {user.area}
-                    </span>
-                  ) : (
-                    <span className="text-zinc-600 text-xs">—</span>
-                  )}
-                </td>
-                <td className="px-5 py-3.5">
-                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${ROLE_BADGE[user.role]}`}>
-                    {user.role}
-                  </span>
-                </td>
-                <td className="px-5 py-3.5 text-zinc-500 text-xs">{user.phone || '—'}</td>
-                <td className="px-5 py-3.5">
-                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => { setEditingUser(user); setShowModal(true) }}
-                      className="text-xs text-blue-400 hover:text-blue-300"
-                    >Editar</button>
-                    {user.id !== currentUser?.id && (
-                      <button
-                        onClick={() => handleDelete(user)}
-                        className="text-xs text-red-500 hover:text-red-400"
-                      >Eliminar</button>
+            {filtered.map(user => {
+              const active = user.is_active !== false
+              return (
+                <tr key={user.id} className={`hover:bg-zinc-800/30 transition-colors group ${!active ? 'opacity-50' : ''}`}>
+                  <td className="px-5 py-3.5 text-zinc-200 font-medium">{user.name}</td>
+                  <td className="px-5 py-3.5 text-zinc-400 text-xs">{user.email}</td>
+                  <td className="px-5 py-3.5">
+                    {user.area ? (
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${AREA_BADGE[user.area] || 'bg-zinc-800 text-zinc-400'}`}>
+                        {user.area}
+                      </span>
+                    ) : (
+                      <span className="text-zinc-600 text-xs">—</span>
                     )}
-                  </div>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${ROLE_BADGE[user.role]}`}>
+                      {user.role}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                      active ? 'bg-emerald-900/40 text-emerald-400' : 'bg-zinc-800 text-zinc-500'
+                    }`}>
+                      {active ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5 text-zinc-500 text-xs">{user.phone || '—'}</td>
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {user.id !== currentUser?.id && (
+                        <button
+                          onClick={() => { setEditingUser(user); setShowModal(true) }}
+                          className="text-xs text-blue-400 hover:text-blue-300"
+                        >
+                          Editar
+                        </button>
+                      )}
+                      {user.id !== currentUser?.id && (
+                        <button
+                          onClick={() => handleToggleActive(user)}
+                          className={`text-xs ${active ? 'text-red-500 hover:text-red-400' : 'text-emerald-500 hover:text-emerald-400'}`}
+                        >
+                          {active ? 'Inactivar' : 'Activar'}
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
         {filtered.length === 0 && (

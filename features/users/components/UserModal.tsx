@@ -22,9 +22,11 @@ function autoEmail(name: string) {
 }
 
 const ROLES_BY_AREA: Record<Area, Role[]> = {
-  DTI: [Role.GERENTE, Role.COORDINADOR, Role.ASISTENCIA],
-  CAM: [Role.GERENTE, Role.COORDINADOR, Role.ASISTENCIA],
+  DTI: [Role.GERENTE, Role.COORDINADOR, Role.ASISTENCIA, Role.EMPLEADO],
+  CAM: [Role.GERENTE, Role.COORDINADOR, Role.ASISTENCIA, Role.EMPLEADO],
 }
+
+const ROLES_NO_AREA: Role[] = [Role.SUPER_USER]
 
 export function UserModal({ isOpen, onClose, onSave, user }: UserModalProps) {
   const [form, setForm] = useState(BLANK)
@@ -42,8 +44,8 @@ export function UserModal({ isOpen, onClose, onSave, user }: UserModalProps) {
   }
 
   const availableRoles = form.area
-    ? [Role.EMPLEADO, ...ROLES_BY_AREA[form.area as Area]]
-    : Object.values(Role)
+    ? ROLES_BY_AREA[form.area as Area]
+    : ROLES_NO_AREA
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -80,7 +82,7 @@ export function UserModal({ isOpen, onClose, onSave, user }: UserModalProps) {
               <Select value={form.area} onValueChange={v => setForm(p => ({ ...p, area: v as Area | '', role: Role.EMPLEADO }))}>
                 <SelectTrigger><SelectValue placeholder="Sin área" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin área (Empleado)</SelectItem>
+                  <SelectItem value="">Sin área (SuperUser)</SelectItem>
                   <SelectItem value="DTI">DTI</SelectItem>
                   <SelectItem value="CAM">CAM</SelectItem>
                 </SelectContent>

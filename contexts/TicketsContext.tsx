@@ -30,13 +30,17 @@ export function TicketsProvider({ children }: { children: ReactNode }) {
     setIsLoading(true)
     try {
       const fetched = await ticketServiceClient.getAllTickets()
-      setTickets(fetched)
+      // Aislar tickets por área del usuario; SuperUser y sin área ven todos
+      const visible = currentUser?.area
+        ? fetched.filter(t => t.area === currentUser.area)
+        : fetched
+      setTickets(visible)
     } catch (e) {
       console.error('[AXIS] Error loading tickets:', e)
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [currentUser?.area])
 
   useEffect(() => { reload() }, [reload])
 

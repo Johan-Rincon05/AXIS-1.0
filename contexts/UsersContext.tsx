@@ -10,8 +10,9 @@ interface UsersContextValue {
   isLoading: boolean
   reload: () => Promise<void>
   createUser: (data: CreateUserData) => Promise<User>
-  updateUser: (id: string, data: Partial<CreateUserData>) => Promise<User>
-  deleteUser: (id: string) => Promise<void>
+  updateUser: (id: string, data: Partial<CreateUserData & { is_active?: boolean }>) => Promise<User>
+  inactivateUser: (id: string) => Promise<void>
+  activateUser: (id: string) => Promise<void>
   getByArea: (area: Area) => User[]
 }
 
@@ -47,9 +48,14 @@ export function UsersProvider({ children }: { children: ReactNode }) {
     return user
   }, [])
 
-  const deleteUser = useCallback(async (id: string) => {
-    await userServiceClient.deleteUser(id)
-    setUsers(prev => prev.filter(u => u.id !== id))
+  const inactivateUser = useCallback(async (id: string) => {
+    const updated = await userServiceClient.updateUser(id, { is_active: false } as any)
+    setUsers(prev => prev.map(u => u.id === id ? updated : u))
+  }, [])
+
+  const activateUser = useCallback(async (id: string) => {
+    const updated = await userServiceClient.updateUser(id, { is_active: true } as any)
+    setUsers(prev => prev.map(u => u.id === id ? updated : u))
   }, [])
 
   const getByArea = useCallback((area: Area) =>
@@ -58,7 +64,8 @@ export function UsersProvider({ children }: { children: ReactNode }) {
   return (
     <UsersContext.Provider value={{
       users, isLoading, reload,
-      createUser, updateUser, deleteUser,
+      createUser, updateUser,
+      inactivateUser, activateUser,
       getByArea,
     }}>
       {children}

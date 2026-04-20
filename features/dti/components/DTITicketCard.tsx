@@ -3,6 +3,7 @@
 import { Ticket, User, Priority, Status } from '@/types'
 
 const PRIORITY_STYLES: Record<Priority, string> = {
+  [Priority.URGENT]: 'border-l-red-400 bg-red-500/10 ring-1 ring-inset ring-red-500/20',
   [Priority.HIGH]: 'border-l-red-500 bg-red-500/5',
   [Priority.MEDIUM]: 'border-l-amber-500 bg-amber-500/5',
   [Priority.LOW]: 'border-l-emerald-500 bg-emerald-500/5',

@@ -55,7 +55,8 @@ const TIPO_LABELS: Record<TipoSolicitudCAM, string> = {
 }
 
 const PRIORITY_LABELS: Record<Priority, string> = {
-  [Priority.HIGH]: '🔴 Alta — Urgente',
+  [Priority.URGENT]: '🚨 Urgente — P1',
+  [Priority.HIGH]: '🔴 Alta',
   [Priority.MEDIUM]: '🟡 Media',
   [Priority.LOW]: '🟢 Baja',
 }

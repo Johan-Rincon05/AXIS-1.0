@@ -1,4 +1,115 @@
-import { Ticket, TipoSolicitudCAM, SLA_DIAS_CAM, SLAMetric, MetricasTecnico, Status, Area } from '@/types'
+import { Ticket, TipoSolicitudCAM, SLA_DIAS_CAM, SLA_DTI, SLAMetric, MetricasTecnico, Status, Area, Priority } from '@/types'
+
+// ─── Business hours helpers (8:00–17:00 Mon–Fri) ─────────────────────────────
+
+const BH_START = 8 * 60   // 480 min
+const BH_END   = 17 * 60  // 1020 min
+
+function minutesInWorkdaySlice(dayMidnight: Date, from: Date, to: Date): number {
+  const ms = dayMidnight.getTime()
+  const dayEnd = ms + 24 * 60 * 60 * 1000
+  const fromMs = Math.max(from.getTime(), ms)
+  const toMs   = Math.min(to.getTime(), dayEnd)
+  if (toMs <= fromMs) return 0
+  const fromMin = (fromMs - ms) / 60000
+  const toMin   = (toMs   - ms) / 60000
+  return Math.max(0, Math.min(toMin, BH_END) - Math.max(fromMin, BH_START))
+}
+
+export function businessMinutesBetween(start: Date, end: Date): number {
+  if (end <= start) return 0
+  let total = 0
+  const cur = new Date(start)
+  cur.setHours(0, 0, 0, 0)
+  while (cur <= end) {
+    const dow = cur.getDay()
+    if (dow !== 0 && dow !== 6) total += minutesInWorkdaySlice(cur, start, end)
+    cur.setDate(cur.getDate() + 1)
+  }
+  return total
+}
+
+export function addBusinessHours(date: Date, hours: number): Date {
+  const result = new Date(date)
+  let mins = hours * 60
+
+  // Snap to inside business hours
+  const snapToNextWorkStart = (d: Date) => {
+    while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1)
+    if (d.getHours() * 60 + d.getMinutes() >= BH_END) {
+      d.setDate(d.getDate() + 1); d.setHours(8, 0, 0, 0)
+      while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1)
+    } else if (d.getHours() * 60 + d.getMinutes() < BH_START) {
+      d.setHours(8, 0, 0, 0)
+    }
+  }
+  snapToNextWorkStart(result)
+
+  while (mins > 0) {
+    const curMin = result.getHours() * 60 + result.getMinutes()
+    const left = BH_END - curMin
+    if (mins <= left) {
+      result.setMinutes(result.getMinutes() + Math.round(mins))
+      break
+    }
+    mins -= left
+    result.setDate(result.getDate() + 1)
+    result.setHours(8, 0, 0, 0)
+    while (result.getDay() === 0 || result.getDay() === 6) result.setDate(result.getDate() + 1)
+  }
+  return result
+}
+
+export interface DTISLAMetric {
+  responseDeadline: Date
+  resolutionDeadline: Date
+  responseEnTiempo: boolean
+  resolutionEnTiempo: boolean
+  responseHorasRestantes: number
+  resolutionHorasRestantes: number
+  responded: boolean
+  resolved: boolean
+}
+
+export function calcularSLAMetric_DTI(ticket: Ticket): DTISLAMetric {
+  const sla = SLA_DTI[ticket.priority as Priority] ?? SLA_DTI[Priority.LOW]
+  const created = new Date(ticket.created_at)
+  const responseDeadline   = addBusinessHours(created, sla.responseHours)
+  const resolutionDeadline = addBusinessHours(created, sla.resolutionHours)
+
+  const now          = new Date()
+  const respondedAt  = ticket.first_response_at ? new Date(ticket.first_response_at) : null
+  const resolvedAt   = ticket.resolved_at        ? new Date(ticket.resolved_at)        : null
+
+  const responseRef   = respondedAt ?? now
+  const resolutionRef = resolvedAt  ?? now
+
+  const responseEnTiempo   = responseRef   <= responseDeadline
+  const resolutionEnTiempo = resolutionRef <= resolutionDeadline
+
+  const responseHoras   = businessMinutesBetween(
+    responseEnTiempo   ? responseRef   : responseDeadline,
+    responseEnTiempo   ? responseDeadline : responseRef
+  ) / 60
+
+  const resolutionHoras = businessMinutesBetween(
+    resolutionEnTiempo ? resolutionRef  : resolutionDeadline,
+    resolutionEnTiempo ? resolutionDeadline : resolutionRef
+  ) / 60
+
+  return {
+    responseDeadline,
+    resolutionDeadline,
+    responseEnTiempo,
+    resolutionEnTiempo,
+    responseHorasRestantes:   Math.round(responseHoras   * 10) / 10,
+    resolutionHorasRestantes: Math.round(resolutionHoras * 10) / 10,
+    responded: !!respondedAt,
+    resolved:  !!resolvedAt,
+  }
+}
+
+// ─── CAM business-day helpers ─────────────────────────────────────────────────
 
 function addBusinessDays(date: Date, days: number): Date {
   const result = new Date(date)
@@ -29,6 +140,24 @@ export function calcularFechaLimiteSLA(ticket: Ticket): Date | null {
 }
 
 export function calcularSLAMetric(ticket: Ticket): SLAMetric {
+  // DTI: use business-hour based SLA
+  if (ticket.area === 'DTI') {
+    const dti = calcularSLAMetric_DTI(ticket)
+    return {
+      ticketId: ticket.id,
+      title: ticket.title,
+      assignedTo: ticket.assigned_to,
+      area: ticket.area,
+      createdAt: ticket.created_at,
+      resolvedAt: ticket.resolved_at,
+      fechaLimiteSLA: dti.resolutionDeadline.toISOString(),
+      enTiempo: dti.resolutionEnTiempo,
+      diasRestantes: dti.resolutionEnTiempo ? dti.resolutionHorasRestantes / 8 : -dti.resolutionHorasRestantes / 8,
+      status: ticket.status,
+    }
+  }
+
+  // CAM: use business-day based SLA
   const fechaLimiteSLA = calcularFechaLimiteSLA(ticket)
   const now = new Date()
   const resolvedAt = ticket.resolved_at ? new Date(ticket.resolved_at) : undefined

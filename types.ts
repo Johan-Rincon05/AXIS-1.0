@@ -20,9 +20,19 @@ export enum Status {
 }
 
 export enum Priority {
-  LOW = 'Baja',
+  URGENT = 'Urgente',
+  HIGH   = 'Alta',
   MEDIUM = 'Media',
-  HIGH = 'Alta',
+  LOW    = 'Baja',
+}
+
+export interface SLATarget { responseHours: number; resolutionHours: number }
+
+export const SLA_DTI: Record<Priority, SLATarget> = {
+  [Priority.URGENT]: { responseHours: 0.5, resolutionHours: 4  },
+  [Priority.HIGH]:   { responseHours: 1,   resolutionHours: 8  },
+  [Priority.MEDIUM]: { responseHours: 4,   resolutionHours: 24 },
+  [Priority.LOW]:    { responseHours: 8,   resolutionHours: 48 },
 }
 
 export enum TipoSolicitudCAM {
@@ -99,6 +109,7 @@ export interface Ticket {
   created_at: string;
   updated_at: string;
   resolved_at?: string;
+  first_response_at?: string;
   comments: Comment[];
   attachments?: Attachment[];
 }

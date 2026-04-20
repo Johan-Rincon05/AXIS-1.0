@@ -39,6 +39,7 @@ const STATUS_LABELS: Record<Status | 'all', string> = {
 
 const PRIORITY_LABELS: Record<Priority | 'all', string> = {
   all: 'Todas las prioridades',
+  [Priority.URGENT]: 'Urgente',
   [Priority.HIGH]: 'Alta',
   [Priority.MEDIUM]: 'Media',
   [Priority.LOW]: 'Baja',

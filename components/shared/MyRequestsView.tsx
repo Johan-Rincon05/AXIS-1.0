@@ -16,6 +16,7 @@ const STATUS_BADGE: Record<Status, string> = {
 }
 
 const PRIORITY_BADGE: Record<Priority, string> = {
+  [Priority.URGENT]: 'bg-red-950 text-red-300 border-red-600 ring-1 ring-red-500',
   [Priority.HIGH]: 'bg-red-900/50 text-red-300 border-red-700',
   [Priority.MEDIUM]: 'bg-amber-900/50 text-amber-300 border-amber-700',
   [Priority.LOW]: 'bg-emerald-900/50 text-emerald-300 border-emerald-700',

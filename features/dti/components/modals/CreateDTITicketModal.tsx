@@ -81,9 +81,10 @@ export function CreateDTITicketModal({ isOpen, onClose, onSubmit, currentUser, u
               <Select value={form.priority} onValueChange={v => set('priority', v as Priority)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={Priority.HIGH}>Alta</SelectItem>
-                  <SelectItem value={Priority.MEDIUM}>Media</SelectItem>
-                  <SelectItem value={Priority.LOW}>Baja</SelectItem>
+                  <SelectItem value={Priority.URGENT}>🔴 Urgente — P1</SelectItem>
+                  <SelectItem value={Priority.HIGH}>Alta — P2</SelectItem>
+                  <SelectItem value={Priority.MEDIUM}>Media — P3</SelectItem>
+                  <SelectItem value={Priority.LOW}>Baja — P4</SelectItem>
                 </SelectContent>
               </Select>
             </div>

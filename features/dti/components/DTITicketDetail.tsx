@@ -1,9 +1,11 @@
 'use client'
 
-import { Ticket, User, Status, Priority } from '@/types'
+import { Ticket, User, Status, Priority, SLA_DTI } from '@/types'
 import { Badge } from '@/components/ui/badge'
+import { calcularSLAMetric_DTI } from '@/services/slaService'
 
 const PRIORITY_BADGE: Record<Priority, string> = {
+  [Priority.URGENT]: 'bg-red-950 text-red-300 border-red-600 ring-1 ring-red-500',
   [Priority.HIGH]: 'bg-red-900/50 text-red-300 border-red-700',
   [Priority.MEDIUM]: 'bg-amber-900/50 text-amber-300 border-amber-700',
   [Priority.LOW]: 'bg-emerald-900/50 text-emerald-300 border-emerald-700',
@@ -37,6 +39,9 @@ export function DTITicketDetail({
   const assignee = users.find(u => u.id === ticket.assigned_to)
   const isActive = ticket.status !== Status.RESOLVED && ticket.status !== Status.CLOSED
   const fmt = (d: string) => new Date(d).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })
+  const sla = calcularSLAMetric_DTI(ticket)
+  const slaTarget = SLA_DTI[ticket.priority as Priority] ?? SLA_DTI[Priority.LOW]
+  const fmtH = (h: number) => h < 1 ? `${Math.round(h * 60)} min` : `${h.toFixed(1)} h`
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -63,6 +68,75 @@ export function DTITicketDetail({
 
       {/* Body */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+
+        {/* DTI SLA Panel */}
+        <div className="rounded-xl border border-zinc-700/50 bg-zinc-900/50 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">SLA DTI</p>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+              sla.resolutionEnTiempo
+                ? 'bg-emerald-900/40 text-emerald-300 border-emerald-700'
+                : 'bg-red-900/40 text-red-300 border-red-700'
+            }`}>
+              {sla.resolutionEnTiempo ? '✓ En plazo' : '⚠ Vencido'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {/* Response SLA */}
+            <div className={`rounded-lg p-3 ${
+              sla.responded
+                ? sla.responseEnTiempo
+                  ? 'bg-emerald-950/40 border border-emerald-800'
+                  : 'bg-red-950/40 border border-red-800'
+                : 'bg-zinc-800/50 border border-zinc-700'
+            }`}>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-1">Respuesta</p>
+              <p className="text-xs font-bold text-zinc-200">
+                {sla.responded
+                  ? sla.responseEnTiempo
+                    ? `✅ En tiempo (${fmtH(sla.responseHorasRestantes)} sobraron)`
+                    : `🔴 ${fmtH(sla.responseHorasRestantes)} tarde`
+                  : sla.responseEnTiempo
+                    ? `⏳ ${fmtH(sla.responseHorasRestantes)} restantes`
+                    : `🔴 ${fmtH(sla.responseHorasRestantes)} vencido`
+                }
+              </p>
+              <p className="text-[10px] text-zinc-500 mt-1">
+                Plazo: {slaTarget.responseHours >= 1 ? `${slaTarget.responseHours} h` : `${slaTarget.responseHours * 60} min`}
+                {' · '}{new Date(sla.responseDeadline).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })}
+              </p>
+            </div>
+
+            {/* Resolution SLA */}
+            <div className={`rounded-lg p-3 ${
+              sla.resolved
+                ? sla.resolutionEnTiempo
+                  ? 'bg-emerald-950/40 border border-emerald-800'
+                  : 'bg-red-950/40 border border-red-800'
+                : sla.resolutionEnTiempo
+                  ? 'bg-zinc-800/50 border border-zinc-700'
+                  : 'bg-red-950/40 border border-red-800'
+            }`}>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-1">Resolución</p>
+              <p className="text-xs font-bold text-zinc-200">
+                {sla.resolved
+                  ? sla.resolutionEnTiempo
+                    ? `✅ En tiempo (${fmtH(sla.resolutionHorasRestantes)} sobraron)`
+                    : `🔴 ${fmtH(sla.resolutionHorasRestantes)} tarde`
+                  : sla.resolutionEnTiempo
+                    ? `⏳ ${fmtH(sla.resolutionHorasRestantes)} restantes`
+                    : `🔴 ${fmtH(sla.resolutionHorasRestantes)} vencido`
+                }
+              </p>
+              <p className="text-[10px] text-zinc-500 mt-1">
+                Plazo: {slaTarget.resolutionHours} h
+                {' · '}{new Date(sla.resolutionDeadline).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })}
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div>
           <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">Descripción</p>
           <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap">{ticket.description}</p>

@@ -34,6 +34,7 @@ export interface UpdateTicketData {
   assigned_to?: string | null
   resolution_notes?: string
   resolved_at?: string
+  first_response_at?: string
   tipo_solicitud?: TipoSolicitudCAM
   objetivo_solicitud?: string
   publico_objetivo?: string
@@ -164,10 +165,13 @@ export async function updateTicket(id: string, data: UpdateTicketData): Promise<
 
   const allowed: (keyof UpdateTicketData)[] = [
     'title', 'description', 'priority', 'status', 'category',
-    'assigned_to', 'resolution_notes', 'resolved_at',
+    'assigned_to', 'resolution_notes', 'resolved_at', 'first_response_at',
     'tipo_solicitud', 'objetivo_solicitud', 'publico_objetivo',
     'mensaje_clave', 'fecha_limite',
   ]
+
+  // Fetch current ticket to check first_response_at for DTI
+  const current = await getTicketById(id)
 
   for (const key of allowed) {
     if (key in data) {
@@ -178,6 +182,17 @@ export async function updateTicket(id: string, data: UpdateTicketData): Promise<
 
   if (data.status === Status.RESOLVED && !data.resolved_at) {
     fields.push(`resolved_at = $${idx++}`)
+    values.push(getColombiaTimestamp())
+  }
+
+  // Auto-set first_response_at for DTI when assigned for the first time
+  if (
+    current?.area === 'DTI' &&
+    !current.first_response_at &&
+    data.assigned_to &&
+    !('first_response_at' in data)
+  ) {
+    fields.push(`first_response_at = $${idx++}`)
     values.push(getColombiaTimestamp())
   }
 

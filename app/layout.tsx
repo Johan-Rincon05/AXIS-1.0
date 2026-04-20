@@ -1,14 +1,12 @@
 import type { Metadata } from 'next'
 import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
-import { Analytics } from '@vercel/analytics/next'
 import { DarkModeProvider } from '../hooks/useDarkMode'
 import './globals.css'
 
 export const metadata: Metadata = {
   title: 'AXIS',
   description: 'Sistema integrado de gestión DTI + CAM',
-  generator: 'v0.app',
   icons: {
     icon: '/favicon.svg',
   },
@@ -20,12 +18,11 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
         <DarkModeProvider>
           {children}
         </DarkModeProvider>
-        <Analytics />
       </body>
     </html>
   )

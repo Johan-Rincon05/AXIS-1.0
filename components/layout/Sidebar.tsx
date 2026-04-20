@@ -4,7 +4,7 @@ import { useAuth, canViewSLA, isSuperUser } from '@/contexts/AuthContext'
 import { Role, isResolverArea } from '@/types'
 import DarkModeToggle from '@/components/DarkModeToggle'
 
-export type AppView = 'all-tickets' | 'dti' | 'cam' | 'resolved' | 'users' | 'sla' | 'my-requests' | 'areas'
+export type AppView = 'all-tickets' | 'dti' | 'cam' | 'resolved' | 'users' | 'sla' | 'my-requests' | 'areas' | 'dashboard'
 
 interface SidebarProps {
   currentView: AppView
@@ -93,10 +93,19 @@ export function Sidebar({ currentView, onViewChange, onLogout, isSyncing }: Side
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
 
-        {/* SuperUser: gestión de usuarios + áreas */}
+        {/* SuperUser: dashboard + gestión de usuarios + áreas */}
         {superUser && (
           <>
             <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest px-4 pt-3 pb-1">
+              Visión General
+            </p>
+            <NavItem active={currentView === 'dashboard'} onClick={() => onViewChange('dashboard')} accent="rose">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10-3a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7z" />
+              </svg>
+              Dashboard
+            </NavItem>
+            <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest px-4 pt-4 pb-1">
               Administración
             </p>
             <NavItem active={currentView === 'users'} onClick={() => onViewChange('users')} accent="rose">

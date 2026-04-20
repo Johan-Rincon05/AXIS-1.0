@@ -217,134 +217,242 @@ class EmailService {
     return emailResult
   }
 
-  async sendWelcomeEmail(userEmail: string, userName: string): Promise<boolean> {
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 30px 20px; border-radius: 8px 8px 0 0; text-align: center; }
-            .content { background: #f9fafb; padding: 30px 20px; border-radius: 0 0 8px 8px; }
-            .welcome-box { background: white; padding: 25px; border-radius: 8px; margin: 20px 0; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-            .access-button { 
-              display: inline-block; 
-              background: linear-gradient(135deg, #10b981, #059669); 
-              color: white; 
-              padding: 15px 30px; 
-              text-decoration: none; 
-              border-radius: 6px; 
-              font-weight: bold; 
-              font-size: 16px; 
-              margin: 20px 0;
-              box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
-              transition: all 0.3s ease;
-            }
-            .access-button:hover { 
-              background: linear-gradient(135deg, #059669, #047857); 
-              transform: translateY(-2px);
-              box-shadow: 0 6px 12px rgba(16, 185, 129, 0.4);
-            }
-            .instructions { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981; }
-            .instructions h3 { color: #10b981; margin-top: 0; }
-            .instructions ol { padding-left: 20px; }
-            .instructions li { margin-bottom: 8px; }
-            .credentials { background: #f0fdf4; padding: 15px; border-radius: 6px; margin: 15px 0; border: 1px solid #bbf7d0; }
-            .credentials strong { color: #166534; }
-            .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; }
-            .features { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }
-            .feature { background: white; padding: 15px; border-radius: 6px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-            .feature-icon { font-size: 24px; margin-bottom: 10px; }
-            @media (max-width: 600px) {
-              .features { grid-template-columns: 1fr; }
-              .container { padding: 10px; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>🎉 ¡Bienvenido a FixIT!</h1>
-              <p style="margin: 10px 0 0 0; font-size: 18px;">Sistema de Gestión de Tickets</p>
+  async sendInvitationEmail(
+    userEmail: string,
+    userName: string,
+    role: string,
+    area?: string | null,
+  ): Promise<boolean> {
+    const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://dashboard.emprendetucarrera.com.co'
+
+    // Role display label
+    const roleLabels: Record<string, string> = {
+      SuperUser: 'Super Usuario',
+      Gerente: 'Gerente',
+      Coordinador: 'Coordinador',
+      Asistencia: 'Técnico de Asistencia',
+      Empleado: 'Colaborador',
+    }
+    const roleLabel = roleLabels[role] ?? role
+
+    // Role badge color
+    const roleBadgeStyle: Record<string, string> = {
+      SuperUser: 'background:#fda4af;color:#9f1239;',
+      Gerente: 'background:#fcd34d;color:#92400e;',
+      Coordinador: 'background:#93c5fd;color:#1e3a8a;',
+      Asistencia: 'background:#c4b5fd;color:#4c1d95;',
+      Empleado: 'background:#d4d4d8;color:#27272a;',
+    }
+    const badgeStyle = roleBadgeStyle[role] ?? 'background:#d4d4d8;color:#27272a;'
+
+    const areaLine = area
+      ? ` &middot; <strong style="color:#a5b4fc;">Área ${area}</strong>`
+      : ''
+
+    // Features per role
+    const features: Record<string, { icon: string; title: string; desc: string }[]> = {
+      SuperUser: [
+        { icon: '👥', title: 'Gestión de Usuarios', desc: 'Crea, activa e inactiva usuarios de todas las áreas de la organización.' },
+        { icon: '🏢', title: 'Gestión de Áreas', desc: 'Administra las áreas solicitantes y define la estructura organizacional.' },
+        { icon: '📊', title: 'Dashboard Global', desc: 'Métricas de progreso en tiempo real por área y por persona.' },
+      ],
+      Gerente: [
+        { icon: '📋', title: 'Vista Completa de Tickets', desc: 'Accede a todos los tickets activos y resueltos de tu área.' },
+        { icon: '📈', title: 'SLA & Métricas', desc: 'Reportes de cumplimiento de acuerdos de nivel de servicio por técnico.' },
+        { icon: '👁️', title: 'Supervisión del Equipo', desc: 'Monitorea el rendimiento individual de cada miembro del equipo.' },
+      ],
+      Coordinador: [
+        { icon: '🎯', title: 'Asignación Inteligente', desc: 'Asigna tickets a los técnicos adecuados de tu área.' },
+        { icon: '📊', title: 'SLA & Métricas', desc: 'Reportes detallados de rendimiento y cumplimiento por técnico.' },
+        { icon: '📝', title: 'Mis Solicitudes', desc: 'Envía solicitudes personales a DTI o CAM cuando lo necesites.' },
+      ],
+      Asistencia: [
+        { icon: '🔧', title: 'Tickets Asignados', desc: 'Gestiona y resuelve todos los tickets que te son asignados.' },
+        { icon: '⏱️', title: 'SLA Personal', desc: 'Monitorea tu cumplimiento de plazos y mantén un alto rendimiento.' },
+        { icon: '📝', title: 'Mis Solicitudes', desc: 'Envía solicitudes personales a otras áreas cuando lo necesites.' },
+      ],
+      Empleado: [
+        { icon: '📬', title: 'Crear Solicitudes', desc: 'Envía solicitudes de soporte a DTI (tecnología) y CAM (comunicaciones).' },
+        { icon: '🔍', title: 'Seguimiento en Tiempo Real', desc: 'Consulta el estado de tus solicitudes y recibe actualizaciones al instante.' },
+        { icon: '🔔', title: 'Notificaciones por Email', desc: 'Recibirás correos automáticos cuando tu solicitud avance o se resuelva.' },
+      ],
+    }
+    const roleFeatures = features[role] ?? features['Empleado']
+
+    const featuresHtml = roleFeatures.map((f) => `
+      <td width="33%" style="padding:0 8px 0 0;vertical-align:top;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="background:#f8faff;border:1px solid #e0e7ff;border-radius:12px;padding:20px 16px;text-align:center;">
+              <div style="font-size:28px;line-height:1;margin-bottom:10px;">${f.icon}</div>
+              <div style="font-size:13px;font-weight:700;color:#1e1b4b;margin-bottom:6px;">${f.title}</div>
+              <div style="font-size:12px;color:#6b7280;line-height:1.5;">${f.desc}</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    `).join('')
+
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Tu invitación a AXIS</title>
+</head>
+<body style="margin:0;padding:0;background-color:#eef2ff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#eef2ff;padding:32px 16px;">
+  <tr>
+    <td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+
+        <!-- ═══ HEADER ═══ -->
+        <tr>
+          <td style="background:linear-gradient(145deg,#0f0c29 0%,#302b63 50%,#24243e 100%);border-radius:20px 20px 0 0;padding:44px 40px 36px;text-align:center;">
+
+            <!-- Logo mark -->
+            <table cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
+              <tr>
+                <td style="background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-radius:14px;width:56px;height:56px;text-align:center;vertical-align:middle;">
+                  <span style="font-size:26px;line-height:56px;">⚡</span>
+                </td>
+                <td style="width:14px;"></td>
+                <td style="vertical-align:middle;text-align:left;">
+                  <div style="font-size:30px;font-weight:900;color:#ffffff;letter-spacing:-1.5px;line-height:1;">AXIS</div>
+                  <div style="font-size:10px;font-weight:600;color:#818cf8;letter-spacing:3px;text-transform:uppercase;margin-top:2px;">Gestión Integrada</div>
+                </td>
+              </tr>
+            </table>
+
+            <!-- Badge -->
+            <div style="margin-bottom:20px;">
+              <span style="display:inline-block;padding:5px 16px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;${badgeStyle}">${roleLabel}${area ? ' · ' + area : ''}</span>
             </div>
-            <div class="content">
-              <div class="welcome-box">
-                <h2 style="color: #10b981; margin-top: 0;">Hola ${userName},</h2>
-                <p style="font-size: 16px; margin-bottom: 20px;">Tu cuenta ha sido creada exitosamente en el sistema FixIT.</p>
-                <p style="font-size: 16px; margin-bottom: 25px;">Ahora puedes acceder a la plataforma y comenzar a gestionar tickets de soporte de manera eficiente.</p>
-                
-                <a href="https://dashboard.emprendetucarrera.com.co/" class="access-button">
-                  🚀 Acceder a FixIT
-                </a>
-              </div>
-              
-              <div class="credentials">
-                <h3 style="color: #166534; margin-top: 0;">📧 Tus Credenciales de Acceso:</h3>
-                <p><strong>Email:</strong> ${userEmail}</p>
-                <p><strong>Contraseña:</strong> La misma que usaste para registrarte</p>
-                <p style="font-size: 14px; color: #6b7280; margin-bottom: 0;"><em>Si no recuerdas tu contraseña, contacta al administrador del sistema.</em></p>
-              </div>
-              
-              <div class="instructions">
-                <h3>📋 Cómo Acceder a la Plataforma:</h3>
-                <ol>
-                  <li><strong>Haz clic en el botón "Acceder a FixIT"</strong> de arriba, o visita: <a href="https://dashboard.emprendetucarrera.com.co/" style="color: #10b981;">https://dashboard.emprendetucarrera.com.co/</a></li>
-                  <li><strong>Ingresa tu email:</strong> ${userEmail}</li>
-                  <li><strong>Ingresa tu contraseña</strong> (la misma que usaste para registrarte)</li>
-                  <li><strong>Haz clic en "Iniciar Sesión"</strong></li>
-                  <li><strong>¡Listo!</strong> Ya puedes comenzar a usar FixIT</li>
-                </ol>
-              </div>
-              
-              <h3 style="color: #10b981; text-align: center;">✨ ¿Qué puedes hacer en FixIT?</h3>
-              <div class="features">
-                <div class="feature">
-                  <div class="feature-icon">🎫</div>
-                  <h4>Crear Tickets</h4>
-                  <p>Reporta problemas y solicita soporte técnico</p>
-                </div>
-                <div class="feature">
-                  <div class="feature-icon">📊</div>
-                  <h4>Seguimiento</h4>
-                  <p>Monitorea el estado de tus tickets en tiempo real</p>
-                </div>
-                <div class="feature">
-                  <div class="feature-icon">📧</div>
-                  <h4>Notificaciones</h4>
-                  <p>Recibe actualizaciones por email automáticamente</p>
-                </div>
-                <div class="feature">
-                  <div class="feature-icon">⚡</div>
-                  <h4>Gestión</h4>
-                  <p>Asigna prioridades y gestiona múltiples tickets</p>
-                </div>
-              </div>
-              
-              <div style="text-align: center; margin: 30px 0;">
-                <p style="font-size: 16px; color: #10b981; font-weight: bold;">¡Esperamos que tengas una excelente experiencia usando FixIT!</p>
-                <p style="font-size: 14px; color: #6b7280;">Si tienes alguna pregunta, no dudes en contactar al equipo de soporte.</p>
-              </div>
+
+            <!-- Headline -->
+            <h1 style="margin:0 0 10px;font-size:26px;font-weight:800;color:#ffffff;line-height:1.25;">¡Bienvenido a AXIS,<br><span style="color:#a5b4fc;">${userName}</span>!</h1>
+            <p style="margin:0;font-size:15px;color:#c7d2fe;line-height:1.6;">Has sido invitado como <strong style="color:#e0e7ff;">${roleLabel}</strong>${areaLine}.<br>Tu acceso está listo para usar.</p>
+
+          </td>
+        </tr>
+
+        <!-- ═══ DIVIDER WITH ICON ═══ -->
+        <tr>
+          <td style="background:linear-gradient(180deg,#302b63,#ffffff);padding:0;height:32px;"></td>
+        </tr>
+
+        <!-- ═══ BODY ═══ -->
+        <tr>
+          <td style="background:#ffffff;padding:36px 40px 0;">
+
+            <!-- Greeting -->
+            <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.7;">
+              Tu cuenta ha sido creada en <strong>AXIS</strong>, la plataforma integrada de gestión de solicitudes de <strong>DTI</strong> y <strong>CAM</strong>. Con tu perfil de <strong>${roleLabel}</strong> tienes acceso inmediato a las herramientas de tu rol.
+            </p>
+
+            <!-- Access info box -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+              <tr>
+                <td style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:20px 24px;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="width:32px;vertical-align:top;">
+                        <span style="font-size:20px;">🔑</span>
+                      </td>
+                      <td style="padding-left:12px;vertical-align:top;">
+                        <div style="font-size:13px;font-weight:700;color:#0369a1;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Tus datos de acceso</div>
+                        <div style="font-size:14px;color:#0c4a6e;margin-bottom:4px;"><strong>Email:</strong> ${userEmail}</div>
+                        <div style="font-size:13px;color:#0369a1;margin-top:8px;">Ingresa a la plataforma y solicita un <strong>código OTP</strong> a tu correo para autenticarte. No necesitas contraseña.</div>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+
+            <!-- Features section -->
+            <div style="margin-bottom:8px;">
+              <div style="font-size:11px;font-weight:700;color:#6366f1;letter-spacing:3px;text-transform:uppercase;margin-bottom:16px;">✦ Lo que puedes hacer en AXIS</div>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>${featuresHtml}</tr>
+              </table>
             </div>
-            <div class="footer">
-              <p><strong>Equipo FixIT</strong> - Sistema de Gestión de Tickets</p>
-              <p style="font-size: 12px; margin-top: 10px;">
-                Este es un email automático, por favor no responder directamente.<br>
-                Para soporte técnico, contacta al administrador del sistema.
-              </p>
-            </div>
-          </div>
-        </body>
-      </html>
-    `
+
+          </td>
+        </tr>
+
+        <!-- ═══ CTA ═══ -->
+        <tr>
+          <td style="background:#ffffff;padding:32px 40px 36px;text-align:center;">
+            <a href="${APP_URL}"
+               style="display:inline-block;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:16px 40px;border-radius:12px;letter-spacing:0.3px;box-shadow:0 4px 15px rgba(99,102,241,0.4);">
+              ⚡ &nbsp; Ingresar a AXIS
+            </a>
+            <p style="margin:16px 0 0;font-size:12px;color:#9ca3af;">O copia y pega este enlace en tu navegador:<br><a href="${APP_URL}" style="color:#6366f1;text-decoration:none;">${APP_URL}</a></p>
+          </td>
+        </tr>
+
+        <!-- ═══ STEPS ═══ -->
+        <tr>
+          <td style="background:#fafafa;border-top:1px solid #f3f4f6;padding:28px 40px;">
+            <div style="font-size:11px;font-weight:700;color:#6366f1;letter-spacing:3px;text-transform:uppercase;margin-bottom:16px;">✦ Cómo acceder</div>
+            <table width="100%" cellpadding="0" cellspacing="0">
+              ${[
+                ['1', 'Haz clic en el botón <strong>Ingresar a AXIS</strong>'],
+                ['2', 'Ingresa tu correo: <strong>' + userEmail + '</strong>'],
+                ['3', 'Haz clic en <strong>Enviar código</strong> para recibir un OTP'],
+                ['4', 'Ingresa el código de 6 dígitos que llegará a tu correo'],
+                ['5', '¡Listo! Ya estás dentro de AXIS 🎉'],
+              ].map(([n, text]) => `
+              <tr>
+                <td style="padding:6px 0;vertical-align:top;">
+                  <table cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="width:28px;height:28px;background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:50%;text-align:center;vertical-align:middle;font-size:12px;font-weight:800;color:#fff;">${n}</td>
+                      <td style="padding-left:12px;font-size:13px;color:#374151;line-height:1.5;">${text}</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>`).join('')}
+            </table>
+          </td>
+        </tr>
+
+        <!-- ═══ FOOTER ═══ -->
+        <tr>
+          <td style="background:#1e1b4b;border-radius:0 0 20px 20px;padding:28px 40px;text-align:center;">
+            <table cellpadding="0" cellspacing="0" style="margin:0 auto 16px;">
+              <tr>
+                <td style="background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-radius:8px;width:32px;height:32px;text-align:center;vertical-align:middle;">
+                  <span style="font-size:16px;line-height:32px;">⚡</span>
+                </td>
+                <td style="width:8px;"></td>
+                <td style="font-size:18px;font-weight:900;color:#fff;letter-spacing:-1px;vertical-align:middle;">AXIS</td>
+              </tr>
+            </table>
+            <p style="margin:0 0 6px;font-size:12px;color:#818cf8;">Sistema Integrado DTI + CAM &nbsp;·&nbsp; Emprende Tu Carrera</p>
+            <p style="margin:0;font-size:11px;color:#4338ca;">Este es un correo automático. Si no esperabas esta invitación, ignóralo o contacta a tu administrador.</p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>`
 
     return this.sendEmail({
       to: userEmail,
-      subject: "¡Bienvenido a FixIT!",
+      subject: `⚡ Tu acceso a AXIS está listo, ${userName}`,
       html,
-      text: `¡Bienvenido a FixIT, ${userName}! Tu cuenta ha sido creada exitosamente.`,
+      text: `Bienvenido a AXIS, ${userName}. Tu cuenta como ${roleLabel}${area ? ` en ${area}` : ''} ha sido creada. Ingresa en: ${APP_URL}`,
     })
+  }
+
+  async sendWelcomeEmail(userEmail: string, userName: string): Promise<boolean> {
+    return this.sendInvitationEmail(userEmail, userName, 'Empleado', null)
   }
 
   /**

@@ -15,10 +15,11 @@ import { ResolvedView } from '@/components/shared/ResolvedView'
 import { MyRequestsView } from '@/components/shared/MyRequestsView'
 import { UsersView } from '@/features/users/components/UsersView'
 import { AreasView } from '@/features/admin/components/AreasView'
+import { SuperUserDashboard } from '@/features/admin/components/SuperUserDashboard'
 import { SLAView } from '@/features/sla/components/SLAView'
 
 function getDefaultView(role: Role, area: string | null | undefined): AppView {
-  if (role === Role.SUPER_USER) return 'users'
+  if (role === Role.SUPER_USER) return 'dashboard'
   if (!area || !isResolverArea(area)) return 'my-requests'
   return 'all-tickets'
 }
@@ -56,6 +57,7 @@ export function AppShell() {
         {currentView === 'cam' && <CAMView />}
         {currentView === 'resolved' && <ResolvedView />}
         {currentView === 'my-requests' && <MyRequestsView />}
+        {currentView === 'dashboard' && <SuperUserDashboard />}
         {currentView === 'users' && <UsersView />}
         {currentView === 'areas' && <AreasView />}
         {currentView === 'sla' && <SLAView />}

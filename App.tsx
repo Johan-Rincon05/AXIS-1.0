@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Role } from '@/types'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { TicketsProvider } from '@/contexts/TicketsContext'
@@ -9,6 +9,14 @@ import { AppShell } from '@/components/layout/AppShell'
 import { LoginScreen } from '@/features/auth/components/LoginScreen'
 import { userServiceClient } from '@/services/userServiceClient'
 
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  user_not_found: 'El correo de Google no está registrado en el sistema.',
+  user_inactive: 'Tu cuenta está inactiva. Contacta al administrador.',
+  token_failed: 'Error al autenticar con Google. Intenta de nuevo.',
+  oauth_failed: 'Error de autenticación. Intenta de nuevo.',
+  no_email: 'No se pudo obtener el correo de Google.',
+}
+
 function AppContent() {
   const { currentUser, login } = useAuth()
 
@@ -16,6 +24,27 @@ function AppContent() {
   const [isSendingCode, setIsSendingCode] = useState(false)
   const [loginError, setLoginError] = useState('')
   const [showRoleSelection, setShowRoleSelection] = useState(false)
+
+  // Manejar redirect de Google OAuth
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const googleUserId = params.get('google_user_id')
+    const authError = params.get('auth_error')
+
+    if (authError) {
+      setLoginError(AUTH_ERROR_MESSAGES[authError] || 'Error al iniciar sesión con Google.')
+      window.history.replaceState({}, '', '/')
+    }
+
+    if (googleUserId) {
+      window.history.replaceState({}, '', '/')
+      userServiceClient.getUserById(googleUserId).then(user => {
+        if (user) login(user)
+        else setLoginError('Usuario no encontrado.')
+      }).catch(() => setLoginError('Error al cargar el usuario.'))
+    }
+  }, [])
 
   const handleSendCode = useCallback(async (email: string) => {
     setIsSendingCode(true)
@@ -54,7 +83,7 @@ function AppContent() {
   }, [login])
 
   const handleGoogleLogin = useCallback(() => {
-    setShowRoleSelection(true)
+    window.location.href = '/api/auth/google'
   }, [])
 
   const handleSelectRole = useCallback(async (role: Role) => {

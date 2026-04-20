@@ -2,11 +2,24 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-// Google OAuth pendiente de implementación (Fase 3)
-// Requiere configurar un proveedor OAuth propio o usar NextAuth.js
 export async function GET() {
-  return NextResponse.json(
-    { error: 'Login con Google no disponible por el momento' },
-    { status: 501 }
+  const clientId = process.env.GOOGLE_CLIENT_ID
+  const appUrl = process.env.NEXTAUTH_URL || ''
+
+  if (!clientId) {
+    return NextResponse.json({ error: 'Google OAuth no configurado' }, { status: 500 })
+  }
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: `${appUrl}/api/auth/google/callback`,
+    response_type: 'code',
+    scope: 'email profile',
+    access_type: 'online',
+    prompt: 'select_account',
+  })
+
+  return NextResponse.redirect(
+    `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
   )
 }

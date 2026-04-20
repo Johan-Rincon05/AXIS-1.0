@@ -1,12 +1,8 @@
-"use client"
+import dynamic from 'next/dynamic'
 
-import { Suspense } from "react"
-import App from "../App"
+// SPA pura — deshabilitar SSR para evitar errores de hooks en prerender
+const App = dynamic(() => import('../App'), { ssr: false })
 
 export default function Page() {
-  return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
-      <App />
-    </Suspense>
-  )
+  return <App />
 }

@@ -1,15 +1,7 @@
-'use client'
+import dynamic from 'next/dynamic'
 
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+const AuthCallback = dynamic(() => import('./AuthCallbackClient'), { ssr: false })
 
-// Callback placeholder — Google OAuth pendiente de Fase 3
 export default function AuthCallbackPage() {
-  const router = useRouter()
-
-  useEffect(() => {
-    router.replace('/')
-  }, [router])
-
-  return null
+  return <AuthCallback />
 }

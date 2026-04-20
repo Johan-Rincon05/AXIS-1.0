@@ -2,7 +2,8 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 import { User, Area } from '@/types'
-import { userServiceClient, CreateUserData } from '@/services/userService'
+import { userServiceClient } from '@/services/userServiceClient'
+import type { CreateUserData } from '@/services/userServiceClient'
 
 interface UsersContextValue {
   users: User[]

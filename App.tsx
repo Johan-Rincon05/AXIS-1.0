@@ -7,7 +7,7 @@ import { TicketsProvider } from '@/contexts/TicketsContext'
 import { UsersProvider } from '@/contexts/UsersContext'
 import { AppShell } from '@/components/layout/AppShell'
 import { LoginScreen } from '@/features/auth/components/LoginScreen'
-import { userServiceClient } from '@/services/userService'
+import { userServiceClient } from '@/services/userServiceClient'
 
 function AppContent() {
   const { currentUser, login } = useAuth()

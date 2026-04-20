@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 import { User, Role } from '@/types'
-import { userServiceClient } from '@/services/userService'
 
 interface AuthContextValue {
   currentUser: User | null

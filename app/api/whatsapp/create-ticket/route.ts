@@ -196,8 +196,8 @@ function mapPriority(priority: string): Priority {
 // Función auxiliar para buscar usuario por email
 async function findUserByEmail(email: string): Promise<string | null> {
   try {
-    const { userServiceClient } = await import("@/services/userService")
-    const users = await userServiceClient.getAllUsers()
+    const { getAllUsers, getUserById, createUser } = await import("@/services/userService")
+    const users = await getAllUsers()
     const user = users.find(u => u.email.toLowerCase() === email.toLowerCase())
     
     if (user) {
@@ -216,11 +216,11 @@ async function findUserByEmail(email: string): Promise<string | null> {
 // Función auxiliar para crear usuario externo con email real
 async function createExternalUser(email: string, name?: string, whatsappId?: string): Promise<string> {
   // Importar servicios de usuario
-  const { userServiceClient } = await import("@/services/userService")
+  const { getAllUsers, getUserById, createUser } = await import("@/services/userService")
   
   try {
     // Verificar si ya existe un usuario con este email
-    const users = await userServiceClient.getAllUsers()
+    const users = await getAllUsers()
     const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase())
     
     if (existingUser) {
@@ -228,7 +228,7 @@ async function createExternalUser(email: string, name?: string, whatsappId?: str
     }
     
     // Crear nuevo usuario externo con el email real
-    const newUser = await userServiceClient.createUser({
+    const newUser = await createUser({
       name: name || email.split('@')[0],
       email: email,
       phone: whatsappId || undefined,
@@ -246,12 +246,12 @@ async function createExternalUser(email: string, name?: string, whatsappId?: str
 // Función auxiliar para encontrar o crear usuario de WhatsApp (sin email)
 async function findOrCreateWhatsAppUser(whatsappId: string, name?: string): Promise<string> {
   // Importar servicios de usuario
-  const { userServiceClient } = await import("@/services/userService")
+  const { getAllUsers, getUserById, createUser } = await import("@/services/userService")
   
   try {
     // Buscar usuario existente por email (usando WhatsApp ID como email)
     const email = `${whatsappId.replace('@', '_at_')}@whatsapp.bot`
-    const users = await userServiceClient.getAllUsers()
+    const users = await getAllUsers()
     const existingUser = users.find(u => u.email === email)
     
     if (existingUser) {
@@ -259,7 +259,7 @@ async function findOrCreateWhatsAppUser(whatsappId: string, name?: string): Prom
     }
     
     // Crear nuevo usuario
-    const newUser = await userServiceClient.createUser({
+    const newUser = await createUser({
       name: name || `Usuario WhatsApp ${whatsappId.split('@')[0]}`,
       email: email,
       phone: whatsappId, // Guardar el WhatsApp ID en el campo phone
@@ -276,8 +276,8 @@ async function findOrCreateWhatsAppUser(whatsappId: string, name?: string): Prom
 // Función auxiliar para obtener usuario por ID
 async function getUserById(userId: string) {
   try {
-    const { userServiceClient } = await import("@/services/userService")
-    return await userServiceClient.getUserById(userId)
+    const { getAllUsers, getUserById, createUser } = await import("@/services/userService")
+    return await getUserById(userId)
   } catch (error) {
     console.warn("[WhatsApp API] Error getting user:", error)
     return null

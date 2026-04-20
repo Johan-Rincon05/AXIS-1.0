@@ -128,8 +128,8 @@ export async function POST(request: NextRequest) {
 // Función auxiliar para buscar usuario por email
 async function findUserByEmail(email: string): Promise<string | null> {
   try {
-    const { userServiceClient } = await import("@/services/userService")
-    const users = await userServiceClient.getAllUsers()
+    const { getAllUsers, getUserById } = await import("@/services/userService")
+    const users = await getAllUsers()
     const user = users.find(u => u.email.toLowerCase() === email.toLowerCase())
     
     if (user) {
@@ -148,8 +148,8 @@ async function findUserByEmail(email: string): Promise<string | null> {
 // Función auxiliar para obtener usuario por ID
 async function getUserById(userId: string) {
   try {
-    const { userServiceClient } = await import("@/services/userService")
-    return await userServiceClient.getUserById(userId)
+    const { getAllUsers, getUserById } = await import("@/services/userService")
+    return await getUserById(userId)
   } catch (error) {
     console.warn("[WhatsApp Assign API] Error getting user:", error)
     return null

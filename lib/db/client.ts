@@ -1,3 +1,4 @@
+import 'server-only'
 import { Pool, type PoolClient, type QueryResultRow } from 'pg'
 
 let pool: Pool | null = null

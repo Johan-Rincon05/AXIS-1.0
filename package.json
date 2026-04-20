@@ -72,6 +72,7 @@
     "recharts": "latest",
     "sass": "latest",
     "sass-embedded": "latest",
+    "server-only": "^0.0.1",
     "sonner": "latest",
     "stylus": "latest",
     "sugarss": "latest",

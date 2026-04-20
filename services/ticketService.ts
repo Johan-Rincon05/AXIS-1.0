@@ -1,3 +1,4 @@
+import 'server-only'
 import { query, queryOne } from '@/lib/db/client'
 import { Ticket, Priority, Status, Area, TipoSolicitudCAM } from '@/types'
 import { getColombiaTimestamp } from '@/utils/colombiaTime'

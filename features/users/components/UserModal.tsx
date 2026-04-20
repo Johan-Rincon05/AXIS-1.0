@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { User, Role, Area } from '@/types'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -15,7 +15,8 @@ interface UserModalProps {
   user: User | null
 }
 
-const BLANK = { name: '', email: '', phone: '', role: Role.EMPLEADO, area: '' as Area | '' }
+const NO_AREA = '__none__'
+const BLANK = { name: '', email: '', phone: '', role: Role.EMPLEADO, area: NO_AREA as Area | typeof NO_AREA }
 
 function autoEmail(name: string) {
   return name ? name.toLowerCase().replace(/[^a-z\s]/g, '').replace(/\s+/g, '.') + '@empresa.com' : ''
@@ -34,7 +35,7 @@ export function UserModal({ isOpen, onClose, onSave, user }: UserModalProps) {
 
   useEffect(() => {
     setForm(user
-      ? { name: user.name, email: user.email, phone: user.phone || '', role: user.role, area: user.area || '' }
+      ? { name: user.name, email: user.email, phone: user.phone || '', role: user.role, area: user.area || NO_AREA }
       : BLANK
     )
   }, [user, isOpen])
@@ -43,7 +44,8 @@ export function UserModal({ isOpen, onClose, onSave, user }: UserModalProps) {
     setForm(prev => ({ ...prev, name, email: prev.email || autoEmail(name) }))
   }
 
-  const availableRoles = form.area
+  const hasArea = form.area && form.area !== NO_AREA
+  const availableRoles = hasArea
     ? ROLES_BY_AREA[form.area as Area]
     : ROLES_NO_AREA
 
@@ -51,7 +53,7 @@ export function UserModal({ isOpen, onClose, onSave, user }: UserModalProps) {
     e.preventDefault()
     setLoading(true)
     try {
-      await onSave({ ...form, area: form.area || null })
+      await onSave({ ...form, area: (form.area && form.area !== NO_AREA) ? form.area : null })
     } finally {
       setLoading(false)
     }
@@ -62,6 +64,9 @@ export function UserModal({ isOpen, onClose, onSave, user }: UserModalProps) {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{user ? 'Editar Usuario' : 'Nuevo Usuario'}</DialogTitle>
+          <DialogDescription className="sr-only">
+            {user ? 'Edita los datos del usuario.' : 'Completa los datos para crear un nuevo usuario.'}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
@@ -79,10 +84,10 @@ export function UserModal({ isOpen, onClose, onSave, user }: UserModalProps) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Área</Label>
-              <Select value={form.area} onValueChange={v => setForm(p => ({ ...p, area: v as Area | '', role: Role.EMPLEADO }))}>
+              <Select value={form.area} onValueChange={v => setForm(p => ({ ...p, area: v as Area | typeof NO_AREA, role: v === NO_AREA ? Role.SUPER_USER : Role.EMPLEADO }))}>
                 <SelectTrigger><SelectValue placeholder="Sin área" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin área (SuperUser)</SelectItem>
+                  <SelectItem value={NO_AREA}>Sin área (SuperUser)</SelectItem>
                   <SelectItem value="DTI">DTI</SelectItem>
                   <SelectItem value="CAM">CAM</SelectItem>
                 </SelectContent>

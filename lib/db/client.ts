@@ -9,10 +9,9 @@ function getPool(): Pool {
     if (!connectionString) {
       throw new Error('DATABASE_URL no está configurada')
     }
-    const sslDisabled = connectionString.includes('sslmode=disable')
     pool = new Pool({
       connectionString,
-      ssl: sslDisabled ? false : { rejectUnauthorized: false },
+      ssl: false,
       max: 10,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000,

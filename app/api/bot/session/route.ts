@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       phone: body.phone,
       whatsappId: body.whatsappId,
       name: body.name,
-      allowCreate: body.allowCreate ?? true,
+      allowCreate: body.allowCreate ?? false,
     })
 
     const tickets = await listTicketsForActor(
@@ -26,10 +26,22 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ actor, tickets })
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error desconocido'
+
+    if (message === 'Usuario no encontrado') {
+      return NextResponse.json(
+        {
+          error: 'user_not_found',
+          message: 'No se encontró un usuario registrado con ese número de teléfono. Este servicio es exclusivo para empleados registrados.',
+        },
+        { status: 403 }
+      )
+    }
+
     return NextResponse.json(
       {
-        error: 'No se pudo abrir la sesión del bot',
-        details: error instanceof Error ? error.message : 'Error desconocido',
+        error: 'session_error',
+        details: message,
       },
       { status: 400 }
     )

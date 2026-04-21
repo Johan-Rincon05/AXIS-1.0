@@ -29,7 +29,7 @@ export async function findUserByPhone(phone: string): Promise<User | null> {
   return queryOne<User>(
     `SELECT id, name, email, phone, role, area, is_active, created_at, updated_at
      FROM users
-     WHERE phone = ANY($1::text[])
+     WHERE phone = ANY($1::text[]) AND is_active = TRUE
      ORDER BY created_at DESC
      LIMIT 1`,
     [candidates]
@@ -48,6 +48,9 @@ export async function findOrCreateBotActor(input: BotActorLookup): Promise<User>
   }
 
   if (existing) {
+    if (existing.is_active === false) {
+      throw new Error('Usuario no encontrado')
+    }
     const realName = input.name?.trim()
     if (
       realName &&

@@ -1,7 +1,7 @@
 import 'server-only'
 import { query, queryOne } from '@/lib/db/client'
 import { buildWhatsAppJidCandidates, normalizePhone } from '@/lib/bot'
-import { createUser, getUserByEmail, getUserById, type CreateUserData, type User } from '@/services/userService'
+import { createUser, getUserByEmail, getUserById, updateUser, type CreateUserData, type User } from '@/services/userService'
 import { createTicket, getTicketById, updateTicket, type CreateTicketData, type UpdateTicketData } from '@/services/ticketService'
 import { Role, type Area, type Ticket } from '@/types'
 
@@ -37,14 +37,26 @@ export async function findUserByPhone(phone: string): Promise<User | null> {
 }
 
 export async function findOrCreateBotActor(input: BotActorLookup): Promise<User> {
+  let existing: User | null = null
+
   if (input.email) {
-    const existing = await getUserByEmail(input.email)
-    if (existing) return existing
+    existing = await getUserByEmail(input.email)
   }
 
-  if (input.phone) {
-    const existing = await findUserByPhone(input.phone)
-    if (existing) return existing
+  if (!existing && input.phone) {
+    existing = await findUserByPhone(input.phone)
+  }
+
+  if (existing) {
+    const realName = input.name?.trim()
+    if (
+      realName &&
+      realName !== 'Usuario WhatsApp' &&
+      existing.name === 'Usuario WhatsApp'
+    ) {
+      return updateUser(existing.id, { name: realName })
+    }
+    return existing
   }
 
   if (!input.allowCreate) {

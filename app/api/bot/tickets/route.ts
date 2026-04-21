@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireBotAuth } from '@/lib/bot'
 import { createBotTicket, findOrCreateBotActor, listTicketsForActor } from '@/services/botService'
-import { Priority, type Area } from '@/types'
+import { Priority, RESOLVER_AREAS, type Area } from '@/types'
 
 function parsePriority(value?: string): Priority {
   switch ((value || '').toLowerCase()) {
@@ -39,11 +39,15 @@ export async function GET(request: NextRequest) {
     const tickets = await listTicketsForActor(actor.id, area, status, limit)
     return NextResponse.json({ actor, tickets })
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error desconocido'
+    if (message === 'Usuario no encontrado') {
+      return NextResponse.json(
+        { error: 'user_not_found', message: 'No se encontró un usuario registrado. Este servicio es exclusivo para empleados registrados.' },
+        { status: 403 }
+      )
+    }
     return NextResponse.json(
-      {
-        error: 'No se pudieron consultar los tickets',
-        details: error instanceof Error ? error.message : 'Error desconocido',
-      },
+      { error: 'No se pudieron consultar los tickets', details: message },
       { status: 400 }
     )
   }
@@ -63,12 +67,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const area: Area = RESOLVER_AREAS.includes(body.area) ? body.area : 'DTI'
+
     const actor = await findOrCreateBotActor({
       email: body.email,
       phone: body.phone,
       whatsappId: body.whatsappId,
       name: body.name,
-      allowCreate: true,
+      allowCreate: false,
     })
 
     const ticket = await createBotTicket({
@@ -76,7 +82,7 @@ export async function POST(request: NextRequest) {
       description: body.description,
       priority: parsePriority(body.priority),
       category: body.category || 'WhatsApp',
-      area: (body.area as Area) || 'DTI',
+      area,
       requester_id: actor.id,
       origin: body.origin || 'Interna',
       external_company: body.external_company,
@@ -90,11 +96,15 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ actor, ticket }, { status: 201 })
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error desconocido'
+    if (message === 'Usuario no encontrado') {
+      return NextResponse.json(
+        { error: 'user_not_found', message: 'No se encontró un usuario registrado. Este servicio es exclusivo para empleados registrados.' },
+        { status: 403 }
+      )
+    }
     return NextResponse.json(
-      {
-        error: 'No se pudo crear el ticket',
-        details: error instanceof Error ? error.message : 'Error desconocido',
-      },
+      { error: 'No se pudo crear el ticket', details: message },
       { status: 400 }
     )
   }

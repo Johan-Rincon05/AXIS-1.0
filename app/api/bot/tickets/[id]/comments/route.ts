@@ -41,17 +41,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       phone: body.phone,
       whatsappId: body.whatsappId,
       name: body.name,
-      allowCreate: true,
+      allowCreate: false,
     })
 
     const comment = await addTicketComment(id, actor.id, body.content)
     return NextResponse.json({ actor, comment }, { status: 201 })
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error desconocido'
+    if (message === 'Usuario no encontrado') {
+      return NextResponse.json(
+        { error: 'user_not_found', message: 'No se encontró un usuario registrado. Este servicio es exclusivo para empleados registrados.' },
+        { status: 403 }
+      )
+    }
     return NextResponse.json(
-      {
-        error: 'No se pudo crear el comentario',
-        details: error instanceof Error ? error.message : 'Error desconocido',
-      },
+      { error: 'No se pudo crear el comentario', details: message },
       { status: 400 }
     )
   }

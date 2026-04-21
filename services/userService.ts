@@ -34,7 +34,7 @@ export async function getUserById(id: string): Promise<User | null> {
 export async function getUserByEmail(email: string): Promise<User | null> {
   return queryOne<User>(
     `SELECT id, name, email, phone, role, area, is_active, created_at, updated_at
-     FROM users WHERE email = $1`,
+     FROM users WHERE email = $1 AND is_active = TRUE`,
     [email.toLowerCase()]
   )
 }
@@ -79,8 +79,8 @@ export async function updateUser(id: string, data: Partial<CreateUserData>): Pro
 export async function deleteUser(id: string): Promise<void> {
   // Desvincular tickets asignados al usuario
   await query(`UPDATE tickets SET assigned_to = NULL WHERE assigned_to = $1`, [id])
-  // Eliminar comentarios del usuario
-  await query(`DELETE FROM comments WHERE user_id = $1`, [id])
+  // Desasociar comentarios del usuario (mantener historial, no borrar)
+  await query(`UPDATE comments SET user_id = NULL WHERE user_id = $1`, [id])
   // Marcar inactivo (soft delete) para no romper tickets creados por el usuario
   await query(`UPDATE users SET is_active = FALSE WHERE id = $1`, [id])
 }

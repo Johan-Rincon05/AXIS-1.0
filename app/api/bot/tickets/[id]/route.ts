@@ -33,18 +33,26 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   try {
     const { id } = await params
     const body = await request.json()
-    const ticket = await updateBotTicket(id, {
-      status: body.status,
-      priority: body.priority,
-      category: body.category,
-      assigned_to: body.assigned_to,
-      resolution_notes: body.resolution_notes,
-      tipo_solicitud: body.tipo_solicitud,
-      objetivo_solicitud: body.objetivo_solicitud,
-      publico_objetivo: body.publico_objetivo,
-      mensaje_clave: body.mensaje_clave,
-      fecha_limite: body.fecha_limite,
-    })
+
+    const allowed = [
+      'status', 'priority', 'category', 'assigned_to',
+      'resolution_notes', 'tipo_solicitud', 'objetivo_solicitud',
+      'publico_objetivo', 'mensaje_clave', 'fecha_limite',
+    ] as const
+
+    const updates: Record<string, unknown> = {}
+    for (const key of allowed) {
+      if (body[key] !== undefined) updates[key] = body[key]
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json(
+        { error: 'No se enviaron campos para actualizar' },
+        { status: 400 }
+      )
+    }
+
+    const ticket = await updateBotTicket(id, updates)
 
     return NextResponse.json(ticket)
   } catch (error) {

@@ -1,4 +1,3 @@
-import 'server-only'
 import { LinearMetrica } from '@/types'
 
 const LINEAR_API_KEY = process.env.LINEAR_API_KEY

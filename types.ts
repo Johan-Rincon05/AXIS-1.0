@@ -128,16 +128,28 @@ export interface SLAMetric {
   status: Status;
 }
 
+export interface LinearMetrica {
+  totalAsignadas: number;
+  completadas: number;
+  enProgreso: number;
+  porcentaje: number;
+}
+
 export interface MetricasTecnico {
   userId: string;
   userName: string;
   area: Area;
+  // Métricas de AXIS (Soporte)
   totalTickets: number;
   resueltos: number;
   enTiempo: number;
   fueraDeTiempo: number;
-  porcentajeCumplimiento: number;
+  porcentajeTickets: number;
   tiempoPromedioResolucion: number;
+  // Métricas de Linear (Proyectos)
+  linear: LinearMetrica;
+  // KPI Combinado
+  porcentajeCumplimiento: number;
 }
 
 export interface Notification {

@@ -70,15 +70,15 @@ function PersonalView({ metrica }: { metrica: MetricasTecnico }) {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <KPICard label="Asignados" value={metrica.totalTickets} sub="tickets en total" />
-        <KPICard label="Resueltos" value={metrica.resueltos} sub="cerrados con éxito" accent="text-emerald-600 dark:text-emerald-400" />
-        <KPICard label="En tiempo" value={metrica.enTiempo} sub="dentro del SLA" accent="text-blue-600 dark:text-blue-400" />
-        <KPICard label="Tiempo prom." value={`${metrica.tiempoPromedioResolucion}d`} sub="días por ticket" />
+        <KPICard label="KPI Global" value={`${metrica.porcentajeCumplimiento}%`} sub="Promedio ponderado" accent="text-blue-600 dark:text-blue-400" />
+        <KPICard label="Tickets Soporte" value={metrica.resueltos} sub={`de ${metrica.totalTickets} asignados`} />
+        <KPICard label="SLA Tickets" value={`${metrica.porcentajeTickets}%`} sub={`${metrica.enTiempo} en tiempo`} />
+        <KPICard label="Tareas Linear" value={metrica.linear.completadas} sub={`de ${metrica.linear.totalAsignadas} en total`} />
       </div>
 
       <Card className="p-5 border-zinc-200 dark:border-zinc-800">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Cumplimiento SLA</p>
+          <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Cumplimiento Global</p>
           <Badge variant="outline" className={`text-sm font-bold px-3 py-1 ${badge.cls}`}>
             {badge.label}
           </Badge>
@@ -88,8 +88,8 @@ function PersonalView({ metrica }: { metrica: MetricasTecnico }) {
           className="h-3 rounded-full"
         />
         <div className="flex justify-between mt-2 text-[11px] text-zinc-400">
-          <span>{metrica.enTiempo} en tiempo · {metrica.fueraDeTiempo} fuera de plazo</span>
-          <span>Meta: 80%</span>
+          <span>Tickets: {metrica.porcentajeTickets}% · Linear: {metrica.linear.porcentaje}%</span>
+          <span>Meta Global: 80%</span>
         </div>
       </Card>
     </div>
@@ -165,10 +165,10 @@ export function SLADashboard({
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <KPICard label="Total tickets" value={totalTickets} />
-        <KPICard label="Resueltos" value={totalResueltos} accent="text-emerald-600 dark:text-emerald-400" />
-        <KPICard label="En tiempo" value={totalEnTiempo} sub="dentro del SLA" accent="text-blue-600 dark:text-blue-400" />
-        <KPICard label="Fuera plazo" value={totalFuera} accent={totalFuera > 0 ? 'text-red-500 dark:text-red-400' : undefined} />
+        <KPICard label="Promedio Global" value={`${globalPct}%`} accent="text-blue-600 dark:text-blue-400" />
+        <KPICard label="Tickets Soporte" value={totalResueltos} sub={`resueltos de ${totalTickets}`} accent="text-emerald-600 dark:text-emerald-400" />
+        <KPICard label="SLA Tickets" value={totalResueltos > 0 ? Math.round((totalEnTiempo / totalResueltos) * 100) + '%' : '100%'} sub={`${totalEnTiempo} a tiempo`} />
+        <KPICard label="Tareas Linear" value={filtered.reduce((acc, m) => acc + m.linear.completadas, 0)} sub={`de ${filtered.reduce((acc, m) => acc + m.linear.totalAsignadas, 0)} asignadas`} />
       </div>
 
       <Separator className="dark:bg-zinc-800" />
@@ -249,7 +249,7 @@ export function SLADashboard({
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
-                {['Técnico', 'Área', 'Total', 'Resueltos', 'Cumplimiento', 'T. Promedio'].map(h => (
+                {['Técnico', 'Área', 'KPI Global', 'SLA Tickets', 'Progreso Linear', 'Tickets Fuera Plazo'].map(h => (
                   <th
                     key={h}
                     className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-400"
@@ -262,6 +262,8 @@ export function SLADashboard({
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {filtered.map(m => {
                 const badge = getCumplimientoBadge(m.porcentajeCumplimiento)
+                const badgeTickets = getCumplimientoBadge(m.porcentajeTickets)
+                const badgeLinear = getCumplimientoBadge(m.linear.porcentaje)
                 const aColor = AREA_COLOR[m.area] ?? AREA_COLOR.DTI
                 return (
                   <tr
@@ -279,19 +281,25 @@ export function SLADashboard({
                         {m.area}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400 text-xs font-mono">
-                      {m.totalTickets}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400 text-xs font-mono">
-                      {m.resueltos}
-                    </td>
                     <td className="px-4 py-3">
                       <Badge variant="outline" className={`text-xs font-bold ${badge.cls}`}>
                         {badge.label}
                       </Badge>
                     </td>
+                    <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400 text-xs font-mono">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${badgeTickets.cls}`}>
+                        {m.porcentajeTickets}%
+                      </span>
+                      <span className="ml-2 text-[10px]">({m.resueltos}/{m.totalTickets})</span>
+                    </td>
+                    <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400 text-xs font-mono">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${badgeLinear.cls}`}>
+                        {m.linear.porcentaje}%
+                      </span>
+                      <span className="ml-2 text-[10px]">({m.linear.completadas}/{m.linear.totalAsignadas})</span>
+                    </td>
                     <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400 text-xs font-mono">
-                      {m.tiempoPromedioResolucion > 0 ? `${m.tiempoPromedioResolucion}d` : '—'}
+                      {m.fueraDeTiempo > 0 ? <span className="text-red-500 font-bold">{m.fueraDeTiempo} atrasados</span> : '0'}
                     </td>
                   </tr>
                 )

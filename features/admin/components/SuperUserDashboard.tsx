@@ -1,10 +1,9 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useTickets } from '@/contexts/TicketsContext'
 import { useUsers } from '@/contexts/UsersContext'
-import { Status, Priority, isResolverArea } from '@/types'
-import { getMetricasPorTecnico } from '@/services/slaService'
+import { Status, Priority, isResolverArea, MetricasTecnico } from '@/types'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, PieChart, Pie, Legend,
@@ -65,10 +64,18 @@ function AreaPanel({
   const inProgress = areaTickets.filter(t => t.status === Status.IN_PROGRESS)
   const resolvedPct = pct(resolved.length, areaTickets.length)
 
-  const metricas = useMemo(
-    () => getMetricasPorTecnico(areaTickets, users).filter(m => m.area === area),
-    [areaTickets, users, area]
-  )
+  const [metricas, setMetricas] = useState<MetricasTecnico[]>([])
+
+  useEffect(() => {
+    fetch('/api/sla')
+      .then(res => res.json())
+      .then(data => {
+        if (data.metricas) {
+          setMetricas(data.metricas.filter((m: MetricasTecnico) => m.area === area))
+        }
+      })
+      .catch(console.error)
+  }, [areaTickets.length, users.length, area])
 
   const priorityBreakdown = [
     { label: 'Alta', count: areaTickets.filter(t => t.priority === Priority.HIGH).length, color: '#ef4444' },
@@ -191,10 +198,16 @@ export function SuperUserDashboard() {
   const dtiTickets = tickets.filter(t => t.area === 'DTI')
   const camTickets = tickets.filter(t => t.area === 'CAM')
 
-  const metricas = useMemo(
-    () => getMetricasPorTecnico(tickets, users),
-    [tickets, users]
-  )
+  const [metricas, setMetricas] = useState<MetricasTecnico[]>([])
+
+  useEffect(() => {
+    fetch('/api/sla')
+      .then(res => res.json())
+      .then(data => {
+        if (data.metricas) setMetricas(data.metricas)
+      })
+      .catch(console.error)
+  }, [tickets.length, users.length])
 
   // Bar chart data: one bar per person
   const chartData = metricas
@@ -355,7 +368,7 @@ export function SuperUserDashboard() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-zinc-800">
-                  {['Persona', 'Área', 'Tickets', 'Resueltos', 'SLA', 'Progreso', 'T. Prom.'].map(h => (
+                  {['Persona', 'Área', 'SLA Tickets', 'Tareas Linear', 'KPI Global', 'Progreso', 'T. Prom.'].map(h => (
                     <th key={h} className="px-4 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
                       {h}
                     </th>
@@ -389,8 +402,12 @@ export function SuperUserDashboard() {
                             {m.area}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-zinc-400 text-xs font-mono">{m.totalTickets}</td>
-                        <td className="px-4 py-3 text-zinc-400 text-xs font-mono">{m.resueltos}</td>
+                        <td className="px-4 py-3 text-zinc-400 text-xs font-mono">
+                          {m.porcentajeTickets}% <span className="text-[10px] ml-1">({m.resueltos}/{m.totalTickets})</span>
+                        </td>
+                        <td className="px-4 py-3 text-zinc-400 text-xs font-mono">
+                          {m.linear?.porcentaje ?? 100}% <span className="text-[10px] ml-1">({m.linear?.completadas ?? 0}/{m.linear?.totalAsignadas ?? 0})</span>
+                        </td>
                         <td className="px-4 py-3">
                           <span className="text-xs font-bold" style={{ color: slaColor }}>
                             {m.porcentajeCumplimiento}%

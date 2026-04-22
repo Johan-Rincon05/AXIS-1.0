@@ -1,32 +1,37 @@
 'use client'
 
-import { useMemo } from 'react'
-import { useTickets } from '@/contexts/TicketsContext'
-import { useUsers } from '@/contexts/UsersContext'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { getMetricasPorTecnico, getMetricasPersonales } from '@/services/slaService'
-import { Role, Area } from '@/types'
+import { Role, Area, MetricasTecnico } from '@/types'
 
 export function useSLA(area?: Area) {
-  const { tickets } = useTickets()
-  const { users } = useUsers()
   const { currentUser } = useAuth()
+  
+  const [metricas, setMetricas] = useState<MetricasTecnico[]>([])
+  const [currentUserMetrica, setCurrentUserMetrica] = useState<MetricasTecnico | undefined>(undefined)
+  const [isLoading, setIsLoading] = useState(true)
 
-  const metricas = useMemo(() => {
-    const filtered = area ? tickets.filter(t => t.area === area) : tickets
-    return getMetricasPorTecnico(filtered, users)
-  }, [tickets, users, area])
+  useEffect(() => {
+    let url = '/api/sla?'
+    if (area) url += `area=${area}&`
+    if (currentUser) {
+      url += `userId=${currentUser.id}&userName=${encodeURIComponent(currentUser.name)}&email=${encodeURIComponent(currentUser.email)}&userArea=${currentUser.area || 'DTI'}`
+    }
 
-  const currentUserMetrica = useMemo(() => {
-    if (!currentUser) return undefined
-    const userArea = currentUser.area ?? 'DTI'
-    const userTickets = area
-      ? tickets.filter(t => t.area === area)
-      : tickets
-    return getMetricasPersonales(currentUser.id, currentUser.name, userArea as Area, userTickets)
-  }, [tickets, currentUser, area])
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        if (data.metricas) setMetricas(data.metricas)
+        if (data.currentUserMetrica) setCurrentUserMetrica(data.currentUserMetrica)
+        setIsLoading(false)
+      })
+      .catch(err => {
+        console.error('Error fetching SLA:', err)
+        setIsLoading(false)
+      })
+  }, [area, currentUser])
 
   const isStaff = currentUser?.role !== Role.EMPLEADO
 
-  return { metricas, currentUserMetrica, isStaff }
+  return { metricas, currentUserMetrica, isStaff, isLoading }
 }

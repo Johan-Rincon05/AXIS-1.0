@@ -24,11 +24,11 @@ export async function GET(request: NextRequest) {
     )
 
     // 3. Calcular las métricas usando la función que ya existe
-    const metricas = getMetricasPorTecnico(tickets, dtiUsers)
+    const metricas = await getMetricasPorTecnico(tickets, dtiUsers)
 
-    // 4. Filtrar los que tengan menos del 80% de cumplimiento y al menos 1 ticket
+    // 4. Filtrar los que tengan menos del 80% de cumplimiento y al menos 1 ticket o tarea
     const lowPerformers = metricas
-      .filter(m => m.porcentajeCumplimiento < 80 && m.totalTickets > 0)
+      .filter(m => m.porcentajeCumplimiento < 80 && (m.totalTickets > 0 || m.linear.totalAsignadas > 0))
       .map(m => {
         // Buscar el teléfono del usuario para que Anthon sepa a quién escribirle
         const user = dtiUsers.find(u => u.id === m.userId)

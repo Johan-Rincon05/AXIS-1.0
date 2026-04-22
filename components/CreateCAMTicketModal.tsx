@@ -148,7 +148,7 @@ export function CreateCAMTicketModal({
         ...form,
         requester_id: currentUser.id,
         area: 'CAM',
-        assigned_to: assignedTo || undefined,
+        assigned_to: assignedTo && assignedTo !== 'none' ? assignedTo : undefined,
       })
       setForm(BLANK)
       setAssignedTo('')
@@ -354,7 +354,7 @@ export function CreateCAMTicketModal({
                   <SelectValue placeholder="Sin asignación — se asignará después" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="" className="text-sm text-zinc-400">
+                  <SelectItem value="none" className="text-sm text-zinc-400">
                     Sin asignación
                   </SelectItem>
                   {camUsers.map(u => (

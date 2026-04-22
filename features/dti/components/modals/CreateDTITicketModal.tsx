@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { User, Priority, Role } from '@/types'
 import { DTI_CATEGORIES, DTICategory } from '../../types/dti.types'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
@@ -29,7 +29,12 @@ export function CreateDTITicketModal({ isOpen, onClose, onSubmit, currentUser, u
   const [loading, setLoading] = useState(false)
 
   const isStaff = currentUser?.role !== Role.EMPLEADO
-  const employeeUsers = users.filter(u => u.role === Role.EMPLEADO)
+  
+  useEffect(() => {
+    if (isOpen && currentUser) {
+      setForm(p => ({ ...p, requester_id: currentUser.id }))
+    }
+  }, [isOpen, currentUser])
 
   const set = <K extends keyof typeof BLANK>(k: K, v: (typeof BLANK)[K]) =>
     setForm(p => ({ ...p, [k]: v }))

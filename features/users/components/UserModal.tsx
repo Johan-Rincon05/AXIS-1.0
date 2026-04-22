@@ -101,7 +101,7 @@ export function UserModal({ isOpen, onClose, onSave, user }: UserModalProps) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Área</Label>
-              <Select value={form.area} onValueChange={handleAreaChange}>
+              <Select value={form.area || undefined} onValueChange={handleAreaChange}>
                 <SelectTrigger><SelectValue placeholder="Sin área" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NO_AREA}>Sin área (SuperUser)</SelectItem>
@@ -115,7 +115,7 @@ export function UserModal({ isOpen, onClose, onSave, user }: UserModalProps) {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Rol</Label>
-              <Select value={form.role} onValueChange={v => setForm(p => ({ ...p, role: v as Role }))}>
+              <Select value={form.role || undefined} onValueChange={v => setForm(p => ({ ...p, role: v as Role }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {availableRoles.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}

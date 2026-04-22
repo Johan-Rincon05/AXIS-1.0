@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -28,6 +28,7 @@ export function ResolutionModal({ isOpen, onClose, onResolve, ticketTitle }: Res
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Marcar como resuelto</DialogTitle>
+          <DialogDescription className="sr-only">Modal de interacción</DialogDescription>
         </DialogHeader>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 -mt-2 truncate">{ticketTitle}</p>
         <div className="space-y-1.5">

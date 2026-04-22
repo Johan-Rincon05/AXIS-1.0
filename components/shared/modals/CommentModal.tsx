@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { User } from '@/types'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 
@@ -29,6 +29,7 @@ export function CommentModal({ isOpen, onClose, onAdd, currentUser }: CommentMod
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Agregar comentario</DialogTitle>
+          <DialogDescription className="sr-only">Modal de interacción</DialogDescription>
         </DialogHeader>
         <Textarea
           value={text}

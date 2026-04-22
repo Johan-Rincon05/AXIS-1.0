@@ -349,7 +349,7 @@ export function CreateCAMTicketModal({
               <Label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
                 Asignar a (opcional)
               </Label>
-              <Select value={assignedTo} onValueChange={setAssignedTo}>
+              <Select value={assignedTo || undefined} onValueChange={setAssignedTo}>
                 <SelectTrigger className="h-9 text-sm">
                   <SelectValue placeholder="Sin asignación — se asignará después" />
                 </SelectTrigger>

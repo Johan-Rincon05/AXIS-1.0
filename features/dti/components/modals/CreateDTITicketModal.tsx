@@ -70,7 +70,7 @@ export function CreateDTITicketModal({ isOpen, onClose, onSubmit, currentUser, u
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Categoría</Label>
-              <Select value={form.category} onValueChange={v => set('category', v as DTICategory)}>
+              <Select value={form.category || undefined} onValueChange={v => set('category', v as DTICategory)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {DTI_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -79,7 +79,7 @@ export function CreateDTITicketModal({ isOpen, onClose, onSubmit, currentUser, u
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Prioridad</Label>
-              <Select value={form.priority} onValueChange={v => set('priority', v as Priority)}>
+              <Select value={form.priority || undefined} onValueChange={v => set('priority', v as Priority)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={Priority.URGENT}>🔴 Urgente — P1</SelectItem>
@@ -93,7 +93,7 @@ export function CreateDTITicketModal({ isOpen, onClose, onSubmit, currentUser, u
 
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Origen</Label>
-            <Select value={form.origin} onValueChange={v => set('origin', v as 'Interna' | 'Externa')}>
+            <Select value={form.origin || undefined} onValueChange={v => set('origin', v as 'Interna' | 'Externa')}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="Interna">Interna</SelectItem>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Role, Priority, TipoSolicitudCAM, SLA_DIAS_CAM } from '@/types'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -188,7 +188,7 @@ export function CreateCAMTicketModal({ isOpen, onClose, onSubmit, currentUser, u
               <Label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
                 Tipo de solicitud *
               </Label>
-              <Select value={form.tipo_solicitud} onValueChange={v => set('tipo_solicitud', v as TipoSolicitudCAM)}>
+              <Select value={form.tipo_solicitud || undefined} onValueChange={v => set('tipo_solicitud', v as TipoSolicitudCAM)}>
                 <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Object.entries(TIPO_LABELS).map(([val, label]) => (
@@ -201,7 +201,7 @@ export function CreateCAMTicketModal({ isOpen, onClose, onSubmit, currentUser, u
               <Label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
                 Prioridad *
               </Label>
-              <Select value={form.priority} onValueChange={v => set('priority', v as Priority)}>
+              <Select value={form.priority || undefined} onValueChange={v => set('priority', v as Priority)}>
                 <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Object.entries(PRIORITY_LABELS).map(([val, label]) => (
@@ -297,7 +297,7 @@ export function CreateCAMTicketModal({ isOpen, onClose, onSubmit, currentUser, u
               <Label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
                 Asignar a (opcional)
               </Label>
-              <Select value={assignedTo} onValueChange={setAssignedTo}>
+              <Select value={assignedTo || undefined} onValueChange={setAssignedTo}>
                 <SelectTrigger className="h-9 text-sm">
                   <SelectValue placeholder="Sin asignación — se asignará después" />
                 </SelectTrigger>

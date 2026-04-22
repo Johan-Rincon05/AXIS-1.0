@@ -198,9 +198,15 @@ export async function getMetricasPorTecnico(
   return techUsers.map(user => {
     const asignados = tickets.filter(t => t.assigned_to === user.id)
     const resueltos = asignados.filter(t => t.status === Status.RESOLVED || t.status === Status.CLOSED)
+    
+    // Evaluar las métricas de todos los tickets asignados (activos y resueltos)
     const metricas = asignados.map(calcularSLAMetric)
-    const enTiempo = metricas.filter(m => m.enTiempo && m.resolvedAt).length
-    const fueraDeTiempo = resueltos.length - enTiempo
+    
+    // Un ticket está "en tiempo" si la función dice true (ya sea que se resolvió a tiempo o sigue activo y aún hay plazo)
+    const enTiempo = metricas.filter(m => m.enTiempo).length
+    
+    // Un ticket está "fuera de tiempo" si la función dice false (ya venció, sin importar si está activo o resuelto)
+    const fueraDeTiempo = metricas.filter(m => !m.enTiempo).length
 
     const tiempos = resueltos
       .filter(t => t.resolved_at)
@@ -210,7 +216,9 @@ export async function getMetricasPorTecnico(
       })
 
     const tiempoPromedio = tiempos.length > 0 ? tiempos.reduce((a, b) => a + b, 0) / tiempos.length : 0
-    const porcentajeTickets = resueltos.length > 0 ? Math.round((enTiempo / resueltos.length) * 100) : 100
+    
+    // El porcentaje ahora se calcula sobre TODOS los tickets asignados
+    const porcentajeTickets = asignados.length > 0 ? Math.round((enTiempo / asignados.length) * 100) : 100
 
     // Fusionar métricas de Linear
     const linear = linearMetrics[user.email.toLowerCase()] || {
@@ -222,9 +230,9 @@ export async function getMetricasPorTecnico(
 
     // KPI Combinado: Si tiene tareas en Linear, promediar. Si no, solo tickets.
     let kpiCombinado = porcentajeTickets
-    if (linear.totalAsignadas > 0 && resueltos.length > 0) {
+    if (linear.totalAsignadas > 0 && asignados.length > 0) {
       kpiCombinado = Math.round((porcentajeTickets + linear.porcentaje) / 2)
-    } else if (linear.totalAsignadas > 0 && resueltos.length === 0) {
+    } else if (linear.totalAsignadas > 0 && asignados.length === 0) {
       kpiCombinado = linear.porcentaje
     }
 
@@ -254,8 +262,9 @@ export async function getMetricasPersonales(
   const asignados = tickets.filter(t => t.assigned_to === userId)
   const resueltos = asignados.filter(t => t.status === Status.RESOLVED || t.status === Status.CLOSED)
   const metricas = asignados.map(calcularSLAMetric)
-  const enTiempo = metricas.filter(m => m.enTiempo && m.resolvedAt).length
-  const fueraDeTiempo = resueltos.length - enTiempo
+  
+  const enTiempo = metricas.filter(m => m.enTiempo).length
+  const fueraDeTiempo = metricas.filter(m => !m.enTiempo).length
 
   const tiempos = resueltos
     .filter(t => t.resolved_at)
@@ -265,7 +274,7 @@ export async function getMetricasPersonales(
     })
 
   const tiempoPromedio = tiempos.length > 0 ? tiempos.reduce((a, b) => a + b, 0) / tiempos.length : 0
-  const porcentajeTickets = resueltos.length > 0 ? Math.round((enTiempo / resueltos.length) * 100) : 100
+  const porcentajeTickets = asignados.length > 0 ? Math.round((enTiempo / asignados.length) * 100) : 100
 
   const linearMetrics = await getLinearMetricsByEmail()
   const linear = linearMetrics[email.toLowerCase()] || {
@@ -273,9 +282,9 @@ export async function getMetricasPersonales(
   }
 
   let kpiCombinado = porcentajeTickets
-  if (linear.totalAsignadas > 0 && resueltos.length > 0) {
+  if (linear.totalAsignadas > 0 && asignados.length > 0) {
     kpiCombinado = Math.round((porcentajeTickets + linear.porcentaje) / 2)
-  } else if (linear.totalAsignadas > 0 && resueltos.length === 0) {
+  } else if (linear.totalAsignadas > 0 && asignados.length === 0) {
     kpiCombinado = linear.porcentaje
   }
 

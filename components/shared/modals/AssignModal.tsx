@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { User, Ticket } from '@/types'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
@@ -30,18 +30,19 @@ export function AssignModal({ isOpen, onClose, onAssign, ticket, assignableUsers
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Asignar ticket</DialogTitle>
+          <DialogDescription className="sr-only">Selecciona un técnico para asignar este ticket.</DialogDescription>
         </DialogHeader>
         {ticket && (
           <p className="text-sm text-zinc-500 dark:text-zinc-400 -mt-2">
             <span className="font-medium text-zinc-700 dark:text-zinc-200">{ticket.title}</span>
           </p>
         )}
-        <Select value={userId} onValueChange={setUserId}>
+        <Select value={userId || undefined} onValueChange={setUserId}>
           <SelectTrigger>
             <SelectValue placeholder="Seleccionar técnico…" />
           </SelectTrigger>
           <SelectContent>
-            {assignableUsers.map(u => (
+            {assignableUsers.filter(u => u.id).map(u => (
               <SelectItem key={u.id} value={u.id}>
                 {u.name} — <span className="text-zinc-400 text-xs">{u.role}</span>
               </SelectItem>

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { User, Priority, Role } from '@/types'
 import { DTI_CATEGORIES, DTICategory } from '../../types/dti.types'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -58,6 +58,7 @@ export function CreateDTITicketModal({ isOpen, onClose, onSubmit, currentUser, u
             <span className="w-5 h-5 rounded bg-blue-500/20 text-blue-400 flex items-center justify-center text-[10px] font-black">D</span>
             Nuevo Ticket DTI
           </DialogTitle>
+          <DialogDescription className="sr-only">Crea un nuevo ticket de soporte DTI llenando este formulario.</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -104,10 +105,10 @@ export function CreateDTITicketModal({ isOpen, onClose, onSubmit, currentUser, u
           {isStaff && form.origin === 'Interna' && (
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Solicitante</Label>
-              <Select value={form.requester_id} onValueChange={v => set('requester_id', v)}>
+              <Select value={form.requester_id || undefined} onValueChange={v => set('requester_id', v)}>
                 <SelectTrigger><SelectValue placeholder="Seleccionar empleado…" /></SelectTrigger>
                 <SelectContent>
-                  {users.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+                  {users.filter(u => u.id).map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

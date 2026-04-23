@@ -17,10 +17,9 @@ async function injectMessageToAgent(phone: string, prompt: string) {
   })
 
   try {
-    const res = await fetch(`${OPENCLAW_URL}/api/v1/agent/main/session/whatsapp:dm:${cleanPhone}/event`, {
+    const res = await fetch(`${OPENCLAW_URL}/notify/${cleanPhone}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENCLAW_TOKEN}`,
         'Content-Type': 'application/json'
       },
       body

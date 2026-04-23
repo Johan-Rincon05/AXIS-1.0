@@ -157,21 +157,6 @@ export async function createTicket(data: CreateTicketData): Promise<Ticket> {
   const ticket = await getTicketById(row.id)
   if (!ticket) throw new Error('Error al obtener ticket creado')
 
-  // Notificar al coordinador del área si el ticket fue creado sin asignar
-  if (!data.assigned_to) {
-    try {
-      const coordinators = await query(`SELECT * FROM users WHERE role = $1 AND area = $2 AND is_active = TRUE`, [Role.COORDINADOR, data.area])
-      if (coordinators.length > 0) {
-        // Enviar a todos los coordinadores de esa área
-        for (const coord of coordinators) {
-          await notifyCoordinatorNewTicket(ticket, coord as User).catch(e => console.error(e))
-        }
-      }
-    } catch (error) {
-      console.error('Error notificando al coordinador:', error)
-    }
-  }
-
   return ticket
 }
 
@@ -223,22 +208,6 @@ export async function updateTicket(id: string, data: UpdateTicketData): Promise<
 
   const ticket = await getTicketById(id)
   if (!ticket) throw new Error('Ticket no encontrado')
-
-  // Notificar al solicitante sobre cambios importantes
-  try {
-    const requester = await queryOne(`SELECT * FROM users WHERE id = $1`, [ticket.requester_id])
-    if (requester && requester.phone) {
-      if (data.status === Status.RESOLVED || data.status === Status.CLOSED) {
-        if (current?.status !== Status.RESOLVED && current?.status !== Status.CLOSED) {
-          await notifyUserTicketResolved(ticket, requester as User).catch(e => console.error(e))
-        }
-      } else if (data.status && data.status !== current?.status) {
-        await notifyUserTicketUpdated(ticket, requester as User).catch(e => console.error(e))
-      }
-    }
-  } catch (error) {
-    console.error('Error notificando actualización de ticket:', error)
-  }
 
   return ticket
 }
